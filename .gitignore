@@ -1,0 +1,5 @@
+*.so
+*.a
+a.out
+.vscode
+settings.json
