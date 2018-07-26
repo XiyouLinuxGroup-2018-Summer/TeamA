@@ -5,7 +5,7 @@ int main (void)
     char st[50];
     while(scanf("%d",&m) && m > 0)
     {
-    for(k = 1;k<m;k++)
+    for(k = 0;k<m;k++)
     {
         j = 0;
         scanf("%s",st);
