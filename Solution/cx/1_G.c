@@ -1,28 +1,25 @@
 #include<stdio.h>
 int main (void)
 {
-	int m,n,i,k=0,a,b,temp,j,flag;
-    char st[100],t[100];
+int m,n,i,j,flag;
+    int st[110];
     while(~scanf("%d %d",&m,&n) && m!=0 && n !=0)
     {
-        getchar();
-        for(i = 0;i<m*2;i++)
-            st[i] = getchar();
-        for(i = 0;i<m*2;i+=2)
-        t[k++] = st[i] - '0';
-        for(i = 0;i<k;i++)
+        for(i = 0;i<m;i++)
+        scanf("%d",&st[i]);
+        for(i = 0;i<m;i++)
         {
-            if(t[i] < n)
+            if(st[i] < n)
             flag = i;
         }
-        for( j = k-1;j>=flag;j--)
-                t[j+1] = t[j];
-                t[flag+1] = n;
-        k++;
-        for(i = 0;i<k;i++)
-        printf("%d ",t[i]);
+        for( j = m - 1;j>=flag;j--)
+                st[j+1] = st[j];
+                st[flag+1] = n;
+        m++;
+        for(i = 0;i<m;i++)
+        printf("%d ",st[i]);
         printf("\n");
 
     }
-	return 0;
+return 0;
 }
