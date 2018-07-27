@@ -17,6 +17,7 @@
 #define HAVE_t 16   
 #define HAVE_U 32   
 #define HAVE_s 64   
+#define HAVE_R 128
 #define NO_PATH     1
 #define HAVE_PATH   0
 #define LINE_MAX    120
@@ -37,6 +38,13 @@ typedef struct ctrlNode{
     int sumBlock;   // 总用量
 }CTRLNODE, *PCTRLNODE;
 
+typedef char *PATH;
+
+int queMax = 16;
+int front = 1;
+int rear = 0;
+PATH *que;
+
 void analysisArgv(int argc, char *argv[], int *mode, char *pathname); 
 int isDir(char *pathname);
 void getList(char *pathname, int *MAX_PATH, int *FLIndex,  
@@ -50,6 +58,8 @@ void show(int FLIndex, int mode, PNODE PFList, int fileNameMax, int sumBlock);
 char *uidToStr(uid_t uid);
 char *gidToStr(gid_t gid);
 void init(PCTRLNODE pcnode);
+void initQue(char *pathname) ;
+void traverse(char *pathname, int stackIndex);
 
 char *gidToStr(gid_t gid) {
     struct passwd *pw; // 创建passwd结构体指针
@@ -247,6 +257,7 @@ void getList(char *pathname, int *MAX_PATH, int *FLIndex, PNODE PFList, int mode
         // 将该文件的数据放入数组中
         PFList[*FLIndex].buf = buf; 
         strcpy(PFList[*FLIndex].name, dirp->d_name);
+   
     }
 }
 
@@ -275,6 +286,7 @@ void analysisArgv(int argc, char *argv[], int *mode, char *pathname) {
                     case 't' : *mode |= HAVE_t;  continue;
                     case 'U' : *mode |= HAVE_U;  continue;
                     case 's' : *mode |= HAVE_s;  continue;
+                    case 'R' : *mode |= HAVE_R;  continue;
                     default :
                         fprintf(stderr, "\nmode error\n");
                         exit(1);
@@ -303,29 +315,134 @@ void init(PCTRLNODE pcnode) {
     pcnode->FLIndex = 0;
     pcnode->mode = 0;
     pcnode->sumBlock = 0;
-
+pcnode->pathname = (char *)malloc(sizeof(char) * pcnode->MAX_PATH);
     // 给pathname申请空间
-    if((pcnode->pathname = (char *)malloc(sizeof(char) * pcnode->MAX_PATH)) == NULL) {
+    if(pcnode->pathname == NULL) {
         perror("init pathname malloc error");
         exit(1);
     }
     memset(pcnode->pathname, 0, pcnode->MAX_PATH);
 
     // 给数组申请空间
-    if((pcnode->PFList = (PNODE)malloc(sizeof(NODE) * pcnode->MAX_LIST)) == NULL) {
+    pcnode->PFList = (PNODE)malloc(sizeof(NODE) * pcnode->MAX_LIST);
+    if(pcnode->PFList == NULL) {
         perror("init fileList malloc error");
         exit(1);
     }
     memset(pcnode->PFList, 0, pcnode->MAX_LIST);
+
+}
+
+void traverse(char *pathname, int stackIndex) {
+    DIR *dirp;
+    struct dirent *dp;
+    struct stat buf;
+    int MAX_LEN = 256;
+    char *pathTemp = (char *)malloc(PATH_MAX);
+
+    strcpy(pathTemp, pathname);
+    if((dirp = opendir(pathTemp)) == NULL) {
+        perror("opendir error");
+        exit(1);
+    }
+
+    if(pathTemp[stackIndex -1] != '/') {
+        pathTemp[stackIndex++] = '/';
+        pathTemp[stackIndex] =  '\0';
+    }
+    while((dp = readdir(dirp)) != NULL) {
+        struct stat buf;
+        int len = strlen(pathTemp) + strlen(dp->d_name);
+        int type;
+
+        if(strcmp(dp->d_name, ".") == 0
+            || strcmp(dp->d_name, "..") == 0) {
+            continue;
+        }
+        pathTemp[stackIndex - 1] = '/';    // 给文件名字后加/
+        pathTemp[stackIndex] = '\0';
+        strcat(pathTemp, dp->d_name);   // 连接pathName 和 文件名字
+        if(lstat(pathTemp, &buf) == -1) {  // 获取该文件的stat信息
+            printf("lstat : %s", pathTemp);
+            perror("error ");
+        exit(1);
+        }
+      
+        if(S_ISDIR(buf.st_mode)){   // 如果类别为目录, 则递归
+            if(front + 1 > queMax) {
+                queMax += 16;
+                if((que = (PATH *)realloc(que, 1 + sizeof(PATH) * queMax)) == NULL) {
+                    perror("realloc error");
+                    exit(1);
+                }
+            }
+            que[front] = (PATH)malloc(strlen(pathTemp) + 1);
+            if(que[front] == NULL) {
+                perror("traverse malloc error");
+                exit(1);
+            }
+            strcpy(que[front++], pathTemp);
+            traverse(pathTemp, len);
+        }
+        pathTemp[stackIndex] = '\0';    // 将数组的下标又回到刚开始
+    }
+    closedir(dirp); // 关闭dirp指针
+}
+
+
+
+void initQue(char *pathname) {
+    que = (PATH *)malloc(sizeof(PATH) * queMax);
+    que[0] = (PATH)malloc(strlen(pathname) + 1);
+    if(que[0] == NULL) {
+        perror("initQue error");
+        exit(1);
+    }
+    strcpy(que[0], pathname);
 }
 
 int main(int argc, char *argv[]) {
 
     CTRLNODE cnode;
     init(&cnode);
-    analysisArgv(argc, argv, &cnode.mode, cnode.pathname);
+    analysisArgv(argc, argv, &cnode.mode, cnode.pathname); 
 
     if(isDir(cnode.pathname)) {
+        if(cnode.mode & HAVE_R) {
+            initQue(cnode.pathname); // 初始化队列
+            traverse(cnode.pathname, strlen(cnode.pathname)); // 将所有的目录文件都入队列
+printf("queMax : %d\n", queMax);
+for(int i = 0; i < front; i++) {
+    printf("%d : %s\n", i, que[i]);
+}
+
+            while(rear < front) {  // 遍历队列
+                printf("%s %d\n", que[rear], rear); //　输出子目录
+                PCTRLNODE pcnodeTemp = (PCTRLNODE)malloc(sizeof(CTRLNODE));
+                printf("**\n");
+                if(pcnodeTemp == NULL) {
+                    perror("pcnodeTemp error");
+                    exit(1);
+                }
+                // 初始化 cnode.pathname 和 cnode.FLIndex
+                init(pcnodeTemp);
+                
+                strcpy(pcnodeTemp->pathname, que[rear]);
+
+                pcnodeTemp->mode = cnode.mode;
+                // 接下来的操作和正常情况一样
+                printf("getlist\n");
+                getList(pcnodeTemp->pathname, &(pcnodeTemp->MAX_PATH), &(pcnodeTemp->FLIndex), pcnodeTemp->PFList, pcnodeTemp->mode, &(pcnodeTemp->MAX_LIST));
+                printf("sort\n");
+                sort(pcnodeTemp->mode, pcnodeTemp->PFList, pcnodeTemp->FLIndex);
+                pcnodeTemp->fileNameMax = otherWork(pcnodeTemp->FLIndex, pcnodeTemp->PFList, &(pcnodeTemp->sumBlock));
+printf("flindex : %d\t fileNameMax : %d\n", pcnodeTemp->FLIndex, pcnodeTemp->fileNameMax);
+                show(pcnodeTemp->FLIndex, pcnodeTemp->mode, pcnodeTemp->PFList, pcnodeTemp->fileNameMax, pcnodeTemp->sumBlock);
+                free(pcnodeTemp);
+                rear++;
+            }
+            exit(0); // 运行完直接退出
+        }
         getList(cnode.pathname, &(cnode.MAX_PATH), &(cnode.FLIndex), cnode.PFList, cnode.mode, &(cnode.MAX_LIST));
         sort(cnode.mode, cnode.PFList, cnode.FLIndex);
     }else {
