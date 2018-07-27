@@ -5,7 +5,7 @@ int main (void)
     char st[50];
     while(scanf("%d",&m) && m > 0)
     {
-    for(k = 1;k<m;k++)
+    for(k = 0;k<m;k++)
     {
         j = 0;
         scanf("%s",st);
@@ -13,16 +13,17 @@ int main (void)
         ;
         n = i/2;
         i = i-1;
-        while(n)
+        while(n--)
         {
             if(st[i] != st[j])
             {
               printf("no\n");
               break;
             }
-              n--;
+              i--;
+	      j++;
         }
-        if(n <=0)
+        if(n <0)
         printf("yes\n");
     }
     }

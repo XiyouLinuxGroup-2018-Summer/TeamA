@@ -16,7 +16,12 @@ int main (void)
        	 if(c == '*')
        	 printf("%d\n",a*b);
        	 if(c == '/')
-       	 printf("%.2lf\n",(double)a/b);
+	 {
+		 if((a%b) != 0)
+       	             printf("%.2lf\n",(double)a/b);
+		 else
+			  printf("%.0lf\n",(double)a/b);
+	 }
     	}
       }
 	return 0;
