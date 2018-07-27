@@ -99,10 +99,10 @@ void show(int FLIndex, int mode, PNODE PFList, int fileNameMax, int sumBlock) {
 
     for(int i = 0; i < FLIndex; i++, len = 0) {
         if(mode & HAVE_i) { // 如果有i  则输出inode
-            len += printf("\033[;35m%-8d\033[0m", PFList[i].buf.st_ino);
+            len += printf("\033[;35m%-8ld\033[0m", PFList[i].buf.st_ino);
         }
         if(mode & HAVE_s) { // 如果有s 则输出数据块数
-            len += printf("\033[;36m%-3d\033[0m", PFList[i].buf.st_blocks);
+            len += printf("\033[;36m%-3ld\033[0m", PFList[i].buf.st_blocks);
         }
         if(mode & HAVE_l) { // 如果有l 则要输出好多数据
             // 判断文件类型
@@ -127,10 +127,10 @@ void show(int FLIndex, int mode, PNODE PFList, int fileNameMax, int sumBlock) {
             PFList[i].buf.st_mode & S_IWOTH ? putchar('w') : putchar('-');
             PFList[i].buf.st_mode & S_IXOTH ? putchar('x') : putchar('-');
 
-            printf("\033[;34m%3d\033[0m", PFList[i].buf.st_nlink); // 输出硬链接数
+            printf("\033[;34m%3ld\033[0m", PFList[i].buf.st_nlink); // 输出硬链接数
             printf("\033[;35m%6s\033[0m", uidToStr(PFList[i].buf.st_uid)); // 输出user 
             printf("\033[;36m%6s\033[0m", gidToStr(PFList[i].buf.st_gid)); // 输出group
-            printf("%6d", PFList[i].buf.st_size);   // 输出文件大小
+            printf("%6ld", PFList[i].buf.st_size);   // 输出文件大小
             // 输出文件的ctime
             struct tm *localTime = localtime(&PFList[i].buf.st_ctime);  // 这里是将time_t 数据读取成struct tm的操作
             printf("\033[;33m%2d月 %2d日\033[0m ", localTime->tm_mon + 1, localTime->tm_mday);
