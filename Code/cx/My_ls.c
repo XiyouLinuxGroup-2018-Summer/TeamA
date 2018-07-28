@@ -362,20 +362,21 @@ int Recursive(char *path)
 			st[k] = name[i];
 			k++;
 		}
+		st[k] = '\0';
 		if(S_ISLNK(buf.st_mode))
-			printf("\033[40;30m%s\t\033[0m",name);
+			printf("\033[40;30m%s\t\033[0m",st);
 		if(S_ISREG(buf.st_mode))
-			printf("\033[40;31m%s\t\033[0m",name);
+			printf("\033[40;31m%s\t\033[0m",st);
 		if(S_ISDIR(buf.st_mode))
-			printf("\033[40;32m%s\t\033[0m",name);
+			printf("\033[40;32m%s\t\033[0m",st);
 		if(S_ISCHR(buf.st_mode))
-			printf("\033[40;33m%s\t\033[0m",name);
+			printf("\033[40;33m%s\t\033[0m",st);
 		if(S_ISBLK(buf.st_mode))
-			printf("\033[40;34m%s\t\033[0m",name);
+			printf("\033[40;34m%s\t\033[0m",st);
 		if(S_ISFIFO(buf.st_mode))
-			printf("\033[40;35m%s\t\033[0m",name);
+			printf("\033[40;35m%s\t\033[0m",st);
 		if(S_ISSOCK(buf.st_mode))
-			printf("\033[40;36m%s\t\033[0m",name);
+			printf("\033[40;36m%s\t\033[0m",st);
 		if(lstat(name,&buf) < 0)	//对该层目录下的文件进行判断与删选
 		{
 			perror("lstat");
