@@ -364,14 +364,16 @@ int Recursive(char *path,char c)
 			k++;
 		}
 		st[k] = '\0';
-<<<<<<< HEAD
+		if(lstat(name,&buf) <0)
+		{
+			perror("stat");
+			return -1;
+		}
 		if(c == 'l')
 			traverse_full(buf,name);
 		else
 		{
 			c = 'c';
-=======
->>>>>>> 6bb56cf112e87b86671ba4a4d5226b2972466e17
 		if(S_ISLNK(buf.st_mode))
 			printf("\033[40;30m%s\t\033[0m",st);
 		if(S_ISREG(buf.st_mode))
@@ -386,11 +388,7 @@ int Recursive(char *path,char c)
 			printf("\033[40;35m%s\t\033[0m",st);
 		if(S_ISSOCK(buf.st_mode))
 			printf("\033[40;36m%s\t\033[0m",st);
-<<<<<<< HEAD
-		//	traverse_s(name);
 		}
-=======
->>>>>>> 6bb56cf112e87b86671ba4a4d5226b2972466e17
 		if(lstat(name,&buf) < 0)	//对该层目录下的文件进行判断与删选
 		{
 			perror("lstat");
