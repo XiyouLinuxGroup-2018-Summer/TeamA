@@ -11,7 +11,6 @@
 #include<errno.h>
 //#include<Linux/limits.h>
 
-
 #define MAXROWLEN 150
 
 int g_leave_len = MAXROWLEN;
@@ -118,7 +117,8 @@ void display(int flag,char * filename)
 		int i,j;
 	//char name[50];
 	char *name = (char *)malloc(sizeof(char)*400);
-	struct stat buf;
+	struct stat buf;	
+
 	//从路径中截取文件名
 	for(i=0,j=0;i<strlen(filename);i++)
 	{
@@ -134,6 +134,9 @@ void display(int flag,char * filename)
 	if(stat(filename,&buf)==-1)
 			perror("lstat");
 	//1:l 2:a 3:al or la 0:only
+	if(S_ISDIR(buf.st_mode))
+		 printf("\033[31m\033[1m");
+
 	if(flag==0)
 	{	if(name[0]!='.')
 			display_sin(name);
@@ -142,10 +145,7 @@ void display(int flag,char * filename)
 	{	if(name[0]!='.')
 			{
 				display_att(buf,name);
-				if(S_ISDIR(buf.st_mode))
-						 printf("\033[31m\033[1m");
 				printf("	%-s\n",name);
-				printf("\033[0m");
 			}
 	}
 	else if(flag==2)
@@ -155,6 +155,7 @@ void display(int flag,char * filename)
 		display_att(buf,name);
 		printf("	%-s\n",name);
 	}
+	printf("\033[0m");
 
 
 }
@@ -191,21 +192,7 @@ void display_dir_R(int flag,char *path)
 		strcat(filenames[count],ptr->d_name);
 		filenames[count][len + strlen(ptr->d_name)] = '\0';
 		count++;
-	}//	for(int i=0;i<count;i++)
-	//	for(int j=0;j<count-1-i;j++)
-	//	{
-	//		if(strcmp(filenames[j],filenames[j+1])>0)
-	//		{
-	//			strcpy(tmp,filenames[j]);
-	//			tmp[strlen(filenames[j])] = '\0';
-	//			strcpy(filenames[j],filenames[j+1]);
-	//			filenames[j][strlen(filenames[j+1])] = '\0';
-	//			strcpy(filenames[j+1],tmp);
-	//			filenames[j+1][strlen(tmp)] = '\0';
-	//		}
-	//；	}
-
-
+	}
 	for(int i=0;i<count;i++)
 	{
 			
@@ -218,16 +205,17 @@ void display_dir_R(int flag,char *path)
 		if(S_ISDIR(buf.st_mode))
 		{
 			printf("%s\n",filenames[i]);
-			display_dir_R(flag,filenames[i]);
+			if('.'==filenames[i][strlen(filenames[i])-1])
+			{
+					continue;
+			}
+			else
+				display_dir_R(flag,filenames[i]);
 		}
 		else
 			continue;
 	}
-
-	
-
 }
-
 void display_dir(int flag_param,char *path)
 {
 	DIR *dir;
@@ -290,8 +278,6 @@ void myerr(char *errstr,int line)
 	perror(errstr);
 	exit(1);
 }
-
-
 
 //终于开始的主函数。。。
 int main(int argc,char** argv)
