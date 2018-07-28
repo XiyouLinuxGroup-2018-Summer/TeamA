@@ -16,7 +16,7 @@ void traverse_s(char *path);
 int pos (char (*)[80],int low,int high);
 void q_sort (char (*)[80],int low,int high);
 void traverse_dir(int select,char * path);
-int Recursive(char *path);
+int Recursive(char *pathi,char c);
 void inode (char *path);
 int main (int argc, char * argv[])
 {
@@ -57,6 +57,19 @@ int main (int argc, char * argv[])
 				perror("stat");
 				exit(1);
 			}
+		if(strcmp(argv[2],"-lR") == 0)
+		{
+			Recursive(*(argv+1),'l');
+			return 0;
+		}	
+		if(strcmp(argv[2],"-al") == 0)
+		{
+			if(S_ISDIR(buf.st_mode))
+				traverse_dir(1,*(argv+1));	
+			else
+				traverse_full(buf,*(argv+1));
+			return 0;	
+		}
 			switch(m)
 			{
 				case 'a':
@@ -72,19 +85,11 @@ int main (int argc, char * argv[])
 						traverse_full(buf,*(argv+1));
 						break;
 				case 'R':
-							Recursive(*(argv+1));
+							Recursive(*(argv+1),'c');
 						break;	
 				
 			}
 		}
-		if(strcmp(argv[2],"-al") == 0)
-		{
-			if(S_ISDIR(buf.st_mode))
-				traverse_dir(1,*(argv+1));	
-			else
-				traverse_full(buf,*(argv+1));	
-		}
-		
 	}
 			return 0;
 }
@@ -171,7 +176,8 @@ void  traverse_s(char *path)
 {
 		char name[50];
 		struct stat buf;
-		int i;
+		int i,k;
+		char st[50];
 		if(stat(path,&buf) < 0)
 		{
 			printf("%d",__LINE__);
@@ -239,9 +245,6 @@ void traverse_dir(int select,char * path)
 						exit(1);
 					} 
 					strcpy(filename[i],ptr->d_name);
-				/*	filename[i][m] = '\0';
-					strcat(filename[i],ptr->d_name);
-					filename[i][m+strlen(ptr->d_name)] = '\0';*/
 				}
 				q_sort(filename,0,count - 1);
 					if(getcwd(st,512) <0)
@@ -263,17 +266,14 @@ void traverse_dir(int select,char * path)
 						break;
 					case 2:
 						    if(filename[i][0]!= '.'){
-						        //printf("%s\t",filename[i]);
 								traverse_s(filename[i]);
-							/*if( i % SIZE == 0)
-								printf("\n");*/
 						    }
 							break;
 					case 3:if(filename[i][0] != '.')
 						       traverse_full(buf,filename[i]);
 					       break;
 					case 4:
-					       traverse_full(buf,filename[i]);
+					       traverse_s(filename[i]);
 					       break;
 					}
 			}
@@ -316,14 +316,14 @@ void q_sort(char (*a)[80],int low,int high)
 	}
 	return;
 }
-int Recursive(char *path)
+int Recursive(char *path,char c)
 {
 	DIR * dir;
 	struct stat buf;
 	struct dirent *ptr;
 	int i = 0,count = 0,k = 0,m;
 	char st[20000];
-	char name[20000];			//当你想统计'/'目录下的文件的时候，大数组完全就是种享受（滑稽）
+	char name[20000];	//当你想统计'/'目录下的文件的时候，大数组完全就是种享受（滑稽）
 	char *p  = path + strlen(path);
 	if(lstat(path,&buf) < 0)		//获取目录属性
 	{
@@ -348,6 +348,7 @@ int Recursive(char *path)
 	}
 	while((ptr = readdir(dir)) != NULL)
 	{
+		int a = 0;
 		if((strcmp(ptr->d_name,".")==0) || (strcmp(ptr->d_name,"..")==0))
 	          continue;			//剔除隐藏文件
 		strcpy(p,ptr->d_name);
@@ -362,27 +363,35 @@ int Recursive(char *path)
 			st[k] = name[i];
 			k++;
 		}
+		st[k] = '\0';
+		if(c == 'l')
+			traverse_full(buf,name);
+		else
+		{
+			c = 'c';
 		if(S_ISLNK(buf.st_mode))
-			printf("\033[40;30m%s\t\033[0m",name);
+			printf("\033[40;30m%s\t\033[0m",st);
 		if(S_ISREG(buf.st_mode))
-			printf("\033[40;31m%s\t\033[0m",name);
+			printf("\033[40;31m%s\t\033[0m",st);
 		if(S_ISDIR(buf.st_mode))
-			printf("\033[40;32m%s\t\033[0m",name);
+			printf("\033[40;32m%s\t\033[0m",st);
 		if(S_ISCHR(buf.st_mode))
-			printf("\033[40;33m%s\t\033[0m",name);
+			printf("\033[40;33m%s\t\033[0m",st);
 		if(S_ISBLK(buf.st_mode))
-			printf("\033[40;34m%s\t\033[0m",name);
+			printf("\033[40;34m%s\t\033[0m",st);
 		if(S_ISFIFO(buf.st_mode))
-			printf("\033[40;35m%s\t\033[0m",name);
+			printf("\033[40;35m%s\t\033[0m",st);
 		if(S_ISSOCK(buf.st_mode))
-			printf("\033[40;36m%s\t\033[0m",name);
+			printf("\033[40;36m%s\t\033[0m",st);
+		//	traverse_s(name);
+		}
 		if(lstat(name,&buf) < 0)	//对该层目录下的文件进行判断与删选
 		{
 			perror("lstat");
 		}
 		if(S_ISDIR(buf.st_mode) < 0)   //如果不是目录文件继续遍历该层其余文件
 			continue;
-		if(Recursive(name) == 0)	//继续沿着目录文件向下访问
+		if(Recursive(name,c) == 0)	//继续沿着目录文件向下访问
 			printf("\n");
 	}
 	p[-1] = 0;
