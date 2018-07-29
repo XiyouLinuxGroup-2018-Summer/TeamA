@@ -22,7 +22,7 @@
 |姓名    | csdn | 
 |:------|:------|
 |陈健源|[csdn](https://blog.csdn.net/jiange702)|
-|陈新|[csdn](https://blog.csdn.net/jiange702)|
+|陈新|[csdn](https://blog.csdn.net/Cxinsect)|
 |严欣豪|[csdn](https://blog.csdn.net/galaxyxupt)|
 |陈文浩|[csdn](https://blog.csdn.net/m0_37787222)|
 |娄泽豪|[csdn](https://blog.csdn.net/hepangda)|
