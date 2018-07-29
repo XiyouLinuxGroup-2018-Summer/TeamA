@@ -20,6 +20,3 @@
 - 请勿上传可执行文件、超大二进制文件到仓库
 
 
-|陈健源|[csdn](https://blog.csdn.net/jiange702)|
-|陈新|[csdn](https://blog.csdn.net/jiange702)|
-|严欣豪|[csdn](https://blog.csdn.net/galaxyxupt)|
