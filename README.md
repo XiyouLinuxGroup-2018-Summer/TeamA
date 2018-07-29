@@ -18,3 +18,8 @@
 - 使用Markdown书写文档
 - 熟练使用Git，不要出现不可描述的操作哦
 - 请勿上传可执行文件、超大二进制文件到仓库
+
+
+|陈健源|[csdn](https://blog.csdn.net/jiange702)|
+|陈新|[csdn](https://blog.csdn.net/jiange702)|
+|严欣豪|[csdn](https://blog.csdn.net/galaxyxupt)|
