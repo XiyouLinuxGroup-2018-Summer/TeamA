@@ -27,7 +27,7 @@
 #define PRINT_BULE(s)    printf("\033[0;34m%s\033[0;39m\n",s);
 #define PRINT_PURPLE(s)    printf("\033[0;35m%s\033[0;39m\n",s);
 
-
+char jh[1000][1000];
 
 int g_leave_len = MAXROWLEN;
 int g_maxlen;
@@ -49,14 +49,11 @@ void displayof(char name[])
         exit(1);
     }
 
-    //printf("到这一步了4\n");
-
     if(S_ISLNK(hen.st_mode))
-        printf("I");
+        printf("l");
     else if(S_ISREG(hen.st_mode))
     {
         printf("-");
-        //flag=1;
     }
     else if(S_ISDIR(hen.st_mode))
         printf("d");
@@ -118,13 +115,7 @@ void displayof(char name[])
     else
         printf("-");
 
-
-    //if(flag==0)
-    //    printf("  1");
-    //else
-    //{
     printf("%4ld",hen.st_nlink);
-    //}
     
     ag=getpwuid(hen.st_uid);
     we=getgrgid(hen.st_gid);
@@ -184,6 +175,8 @@ void pr(char *name)
     g_leave_len-=(g_maxlen+2);
 }
 
+
+//显示hei目录下文件
 void displayml(char hei[],int ch)
 {
     DIR * dir;
@@ -202,8 +195,6 @@ void displayml(char hei[],int ch)
     {
         k=strlen(ptr->d_name);
         strncpy(sum[i],ptr->d_name,k);
-        //sum[i][k]='\0';
-        //printf("file name:%s\n",sum[i]);
         i++;
     }
 
@@ -228,7 +219,7 @@ void displayml(char hei[],int ch)
         }
     }
 
-    for(int u;u<i;u++)
+    for(int u=0;u<i;u++)
     {
 	    if(ch==0)
             if((strcmp(sum[u],".")==0)||(strcmp(sum[u],"..")==0))
@@ -247,9 +238,6 @@ int sb(char *b[],int num,char *wen,int *flag)
     int i,j,k=0,na;
     char te[50];
     flag[0]=0;   
-    //printf("%s\n",b[1]);
-    //printf("%c\n",b[1][0]);
-    //printf("%c\n",b[1][1]);
 
     for(i=1;i<num;i++)
     {
@@ -272,7 +260,7 @@ int sb(char *b[],int num,char *wen,int *flag)
                 }
                 if(b[i][2]=='R')
                 {
-                    te[k]=='R';
+                    te[k]='R';
                     k++;
                     if(b[i][3]=='l')
                     {
@@ -302,7 +290,7 @@ int sb(char *b[],int num,char *wen,int *flag)
                 }		
 		        if(b[i][2]=='R')
                 {
-                    te[k]=='R';
+                    te[k]='R';
                     k++;
                     if(b[i][3]=='a')
                     {
@@ -310,8 +298,6 @@ int sb(char *b[],int num,char *wen,int *flag)
                         k++;
                     }
                 }
-
-
             }
 
             
@@ -333,7 +319,7 @@ int sb(char *b[],int num,char *wen,int *flag)
                 }		
 		        if(b[i][2]=='l')
                 {
-                    te[k]=='l';
+                    te[k]='l';
                     k++;
                     if(b[i][3]=='a')
                     {
@@ -351,7 +337,6 @@ int sb(char *b[],int num,char *wen,int *flag)
             strncpy(wen,b[i],na);
             wen[na]='\0';
             flag[0]=1;
-            //printf("%s",wen);
         }   
         
     }
@@ -399,6 +384,7 @@ int sb(char *b[],int num,char *wen,int *flag)
 }
 
 
+//显示hei目录下的详细信息
 void displayl(char hei[],int uu,int ff)
 {
     DIR * dir;
@@ -413,19 +399,13 @@ void displayl(char hei[],int uu,int ff)
         return;
     }
     
-    //printf("到这一怒了2\n");
-
-    
-     while((ptr=readdir(dir))!=NULL)
+    while((ptr=readdir(dir))!=NULL)
     {
         k=strlen(ptr->d_name);
         strncpy(sum[i],ptr->d_name,k);
-        //sum[i][k]='\0';
-        //printf("file name:%s\n",sum[i]);
+        sum[i][k]='\0';
         i++;
     }
-    
-    //printf("但这一步了3\n");
 
     for(int y=0;y<i;y++)
     {
@@ -447,54 +427,64 @@ void displayl(char hei[],int uu,int ff)
             }
         }
     }
+    
 
-    for(int u;u<i;u++)
+
+    for(int u=0;u<i;u++)
     {
-        if(ff==0||ff==2)
+        if(ff==0||ff==2||ff==6)
             if((strcmp(sum[u],".")==0)||(strcmp(sum[u],"..")==0))
                 continue;
         if(uu==1)
             chdir(hei);
+
+
         displayof(sum[u]);
     }
     if(uu==1)
         chdir("../");
+        
     closedir(dir);
 
     return;
 
 }
 
-void Rstar(char *hei)
+
+//递归R
+void Rstar(char *hei,int ka)
 {
    
+
     int flag=0;
     
     struct stat hen;
 
     DIR * dir;
     struct dirent *ptr;
-    char sum[100][100];
     int i=0,k,p,c;
-    char te[100];
+    char te[1000];
+
+    char **sum;
+    int m,q;
+    sum=(char**)malloc(10000*sizeof(char*));
+    for(m=0;m<10000;m++)
+	    sum[m]=(char *)malloc(256*sizeof(char));
+
 
     if((dir=opendir(hei))==NULL)
     {
         perror("opendir");
         return;
-    }
-        
+    }    
+
     while((ptr=readdir(dir))!=NULL)
     {
         k=strlen(ptr->d_name);
         strncpy(sum[i],ptr->d_name,k);
-        //sum[i][k]='\0';
-        //printf("file name:%s\n",sum[i]);
+        sum[i][k]='\0';
         i++;
     }
-    
-    printf("%s\n",sum[i]);
-    //chdir(hei);
     
     for(int y=0;y<i;y++)
     {
@@ -514,73 +504,104 @@ void Rstar(char *hei)
                 
                 sum[j][p]='\0';
             }
-        }
-    }
-    
-    
-    //printf("%s\n",sum[i]);
-
-    char buf[100];
-    getcwd(buf,100);
-
-    printf("%s\n",buf);
-    for(int u=0;u<i;u++)
-    {
-        pr(sum[u]);
-        //printf("%s  ",sum[u]);
+        }   
     }
 
+    char buf[1000];
+    getcwd(buf,1000);
 
-    printf("\n\n\n");
-
-
-
-    for(int u=0;u<i;u++)
+    char ut[100];
+    
+    
+    for(int r=0;r<5;r++)
     {
-        //if((chdir(hei))==0)
-           //printf("成功\n");
+        ut[r]=buf[r];
+    }
+    ut[5]='\0';
+    
+    
+
+    if(strstr(buf,"/run/user")!=NULL)
+	    return;
+
+    if(strcmp(ut,"/proc")==0)
+        return;
+    
+
+    printf("%s:\n",buf);
+    
+    int srflag[1000];
+    int jj=0;
+
+
+
+    if(ka!=6&&ka!=7)
+    {
+        for(int u=0;u<i;u++)
+        {
+            if((ka==4||ka==6))
+	            if((strcmp(sum[u],".")==0)||(strcmp(sum[u],"..")==0)||((sum[u][0]=='.')&&(sum[u][1]!='\0')))
+	             { 
+                    continue;  
+                 }
+            //if((sum[u][0]=='.')&&(sum[u][1]='\0'));
+                //continue;
             
-        //chdir(hei);
-        char cuf[100];
-        getcwd(cuf,100);
+            //printf("%s ",sum[u]);
+            pr(sum[u]);
+        }
 
-        printf("%s\n",cuf);
-        printf("%s\n",sum[u]);
-        if(stat(sum[u],&hen)==-1)
+        //printf("\n");
+    }
+
+
+    else if(ka==6||ka==7)
+    {   
+        displayl(hei,0,ka);                      
+    }
+
+    printf("\n\n");
+
+    for(int u=0;u<i;u++)
+    {
+	//if(strstr(sum[u],"/run/user/1000")!=NULL)
+            //continue;
+        if(lstat(sum[u],&hen)==-1)
         {
             printf("%s\n",sum[u]);
             perror("stat:");
             exit(1);
         }
-        //chdir("..");
+        
+        if(S_ISLNK(hen.st_mode))
+            continue;
+
         if(S_ISDIR(hen.st_mode))
-        {     
+        {   
+            if(ka==4||ka==6)
+                if((sum[u][0]=='.')&&(sum[u][1]!='\0'))
+   		            continue;  
             if((strcmp(sum[u],".")==0)||(strcmp(sum[u],"..")==0))
                 continue;
             chdir(sum[u]);
-	        Rstar(".");
+	        Rstar(".",ka);
             //目录文件
             chdir("..");
             flag=1;
-	    }
-	/*
-        if(ff==0||ff==2)
-            
-        if(uu==1)
-            chdir(hei);
-        displayof(sum[u]);
-	*/       
+	    }       
     }
-    //if(flag=0)
-        //chdir("..");    
+	
+    
+    for(int dd=0;dd<10000;dd++)
+        free(sum[dd]);
+    free(sum);
+    closedir(dir);
 }
 
 
 
-
-
 int main(int argc,char *argv[])
-{    	    
+{
     int ch,flag1,flag2,flag3;
     int flag[1];
     int cflag;
@@ -590,6 +611,8 @@ int main(int argc,char *argv[])
     char wen[30];
     
     ch=sb(argv,argc,wen,flag);
+    
+    //printf("%d\n",ch);    
 
 
     //有文件时
@@ -636,7 +659,7 @@ int main(int argc,char *argv[])
             
             
                 if(flag1==0)
-                    printf("%s",wen);
+                    printf("%s\n",wen);
                 else if(flag1==1)
                     displayml(wen,ch);
 	    }
@@ -688,28 +711,101 @@ int main(int argc,char *argv[])
                 displayof(wen);
             else if(flag1==1)
             {
-    	        //切换工作目录
-                //B
-                //chdir(argv[2]);
-                //printf("但这一步了\n");
 		        displayl(wen,1,ch);
 	        }        
         }
 
-        /*
+        
         else if(ch==4)
         {
-                 
+            if(stat(wen,&hen)==-1)
+    	    {
+                perror("stat:");
+                exit(1);
+    	    }
+
+            if(S_ISREG(hen.st_mode))
+            {
+                flag1=0;                //普通文件
+            }
+            else if(S_ISDIR(hen.st_mode))
+                flag1=1;                //目录文件
+            
+            
+            if(flag1==0)
+                printf("%s\n",wen);
+            else if(flag1==1)
+            {
+                chdir(wen);
+
+                char lala[100];
+                getcwd(lala,100);
+            
+                Rstar(lala,ch);
+            }           
         }
+
+	
         else if(ch==5)
         {
+	                if(stat(wen,&hen)==-1)
+    	    {
+                perror("stat:");
+                exit(1);
+    	    }
 
+            if(S_ISREG(hen.st_mode))
+            {
+                flag1=0;                //普通文件
+            }
+            else if(S_ISDIR(hen.st_mode))
+                flag1=1;                //目录文件
+            
+            
+            if(flag1==0)
+                printf("%s\n",wen);
+            else if(flag1==1)
+            {
+                chdir(wen);
+
+                char lala[100];
+                getcwd(lala,100);
+            
+                Rstar(lala,ch);
+            } 	
         }
+
+	
         else if(ch==6)
         {
+	                if(stat(wen,&hen)==-1)
+    	    {
+                perror("stat:");
+                exit(1);
+    	    }
+
+            if(S_ISREG(hen.st_mode))
+            {
+                flag1=0;                //普通文件
+            }
+            else if(S_ISDIR(hen.st_mode))
+                flag1=1;                //目录文件
+            
+            
+            if(flag1==0)
+                displayl(wen,1,ch);
+            else if(flag1==1)
+            {
+                chdir(wen);
+
+                char lala[100];
+                getcwd(lala,100);
+            
+                Rstar(lala,ch);
+            }	    
             
         }
-        */
+        
             
     }
 
@@ -723,7 +819,7 @@ int main(int argc,char *argv[])
             displayml(buf,ch);
         }
 
-	    if(ch==1)
+	if(ch==1)
         {
             char buf[100];
             getcwd(buf,100);
@@ -761,10 +857,6 @@ int main(int argc,char *argv[])
                 displayof(buf);
             else if(flag1==1)
             {
-    	        //切换工作目录
-                //B
-                //chdir(argv[2]);
-                //printf("但这一步了\n");
 		        displayl(buf,0,ch);
 	        }  	
 	    }
@@ -773,27 +865,35 @@ int main(int argc,char *argv[])
         {
             char buf[100];
             getcwd(buf,100);
-            Rstar(buf);    
+            Rstar(buf,ch);    
         }
 
 
-        /*
+        
         if(ch==5)
         {
-            
+            char buf[100];
+            getcwd(buf,100);
+            Rstar(buf,ch);  
         }
 
+        
         if(ch==6)
         {
-
+	        char buf[100];
+            getcwd(buf,100);
+            Rstar(buf,ch);
         }
-
+	
+	
         if(ch==7)
         {
-            
+        	char buf[100];
+            getcwd(buf,100);
+            Rstar(buf,ch);    
         }
 
-        */
+        
     }    
     return 0;
 
