@@ -272,7 +272,7 @@ int sb(char *b[],int num,char *wen,int *flag)
                 }
                 if(b[i][2]=='R')
                 {
-                    te[k]='R';
+                    te[k]=='R';
                     k++;
                     if(b[i][3]=='l')
                     {
@@ -310,6 +310,8 @@ int sb(char *b[],int num,char *wen,int *flag)
                         k++;
                     }
                 }
+
+
             }
 
             
@@ -463,7 +465,7 @@ void displayl(char hei[],int uu,int ff)
 
 }
 
-void Rstar(char *hei,int ka)
+void Rstar(char *hei)
 {
    
     int flag=0;
@@ -491,6 +493,8 @@ void Rstar(char *hei,int ka)
         i++;
     }
     
+    printf("%s\n",sum[i]);
+    //chdir(hei);
     
     for(int y=0;y<i;y++)
     {
@@ -519,17 +523,17 @@ void Rstar(char *hei,int ka)
     char buf[100];
     getcwd(buf,100);
 
-    printf("%s:\n",buf);
+    printf("%s\n",buf);
     for(int u=0;u<i;u++)
     {
-        //pr(sum[u]);
-        if((ka==4||ka==6))
-	    if((strcmp(sum[u],".")==0)||(strcmp(sum[u],"..")==0))
-	        continue;         
-        printf("%s  ",sum[u]);
+        pr(sum[u]);
+        //printf("%s  ",sum[u]);
     }
 
-    printf("\n\n");
+
+    printf("\n\n\n");
+
+
 
     for(int u=0;u<i;u++)
     {
@@ -537,11 +541,11 @@ void Rstar(char *hei,int ka)
            //printf("成功\n");
             
         //chdir(hei);
-        //char cuf[100];
-        //getcwd(cuf,100);
+        char cuf[100];
+        getcwd(cuf,100);
 
-        //printf("%s\n",cuf);
-        //printf("%s\n",sum[u]);
+        printf("%s\n",cuf);
+        printf("%s\n",sum[u]);
         if(stat(sum[u],&hen)==-1)
         {
             printf("%s\n",sum[u]);
@@ -554,7 +558,7 @@ void Rstar(char *hei,int ka)
             if((strcmp(sum[u],".")==0)||(strcmp(sum[u],"..")==0))
                 continue;
             chdir(sum[u]);
-	        Rstar(".",ka);
+	        Rstar(".");
             //目录文件
             chdir("..");
             flag=1;
@@ -566,7 +570,9 @@ void Rstar(char *hei,int ka)
             chdir(hei);
         displayof(sum[u]);
 	*/       
-    }   
+    }
+    //if(flag=0)
+        //chdir("..");    
 }
 
 
@@ -584,6 +590,7 @@ int main(int argc,char *argv[])
     char wen[30];
     
     ch=sb(argv,argc,wen,flag);
+
 
     //有文件时
     if(flag[0]==1)
@@ -766,19 +773,16 @@ int main(int argc,char *argv[])
         {
             char buf[100];
             getcwd(buf,100);
-            Rstar(buf,ch);    
+            Rstar(buf);    
         }
 
-
-        
-        if(ch==5)
-        {
-            char buf[100];
-            getcwd(buf,100);
-            Rstar(buf,ch);  
-        }
 
         /*
+        if(ch==5)
+        {
+            
+        }
+
         if(ch==6)
         {
 
