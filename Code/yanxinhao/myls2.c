@@ -20,7 +20,7 @@ void myerr(char *errstr,int line);
 void display_att(struct stat buf,char *name)//
 {
 	//char buf_time[50];
-	char * buf_time = (char *)malloc(sizeof(char)*100);
+	char * buf_time = (char *)malloc(sizeof(char)*1000);
 	struct passwd *psd;
 	struct group * grp;
 	if(S_ISLNK(buf.st_mode))
@@ -116,7 +116,7 @@ void display(int flag,char * filename)
 {
 		int i,j;
 	//char name[50];
-	char *name = (char *)malloc(sizeof(char)*400);
+	char *name = (char *)malloc(sizeof(char)*1000);
 	struct stat buf;	
 
 	//从路径中截取文件名
@@ -130,32 +130,46 @@ void display(int flag,char * filename)
 		name[j++] = filename[i];
 	}
 	name[j] = '\0';
-	//
-	if(stat(filename,&buf)==-1)
+	
+	if(lstat(filename,&buf)==-1)
 			perror("lstat");
 	//1:l 2:a 3:al or la 0:only
-	if(S_ISDIR(buf.st_mode))
-		 printf("\033[31m\033[1m");
 
 	if(flag==0)
 	{	if(name[0]!='.')
+		{	
+			if(S_ISDIR(buf.st_mode))
+				printf("\033[31m\033[1m");
 			display_sin(name);
+			printf("\033[0m");
+		}
 	}
 	else if(flag==1)
 	{	if(name[0]!='.')
 			{
 				display_att(buf,name);
+				if(S_ISDIR(buf.st_mode))
+					printf("\033[31m\033[1m");
 				printf("	%-s\n",name);
+				printf("\033[0m");
+
 			}
 	}
 	else if(flag==2)
+	{	if(S_ISDIR(buf.st_mode))
+			printf("\033[31m\033[1m");
 		display_sin(name);
-	else if(flag==3)
+		printf("\033[0m");
+	}
+
+	else if(flag==3)		
 	{
 		display_att(buf,name);
+		if(S_ISDIR(buf.st_mode))
+			printf("\033[31m\033[1m");
 		printf("	%-s\n",name);
+		printf("\033[0m");
 	}
-	printf("\033[0m");
 
 
 }
@@ -167,9 +181,9 @@ void display_dir_R(int flag,char *path)
 	int count = 0;
 	int len;
 	char *tmp = (char *)malloc(sizeof(char)*100);
-	//char filenames[10000][10000];
+	//char filenames[100000][1000];
 	char **filenames;
-	filenames = (char**)malloc(sizeof(char*)*10000);
+	filenames = (char**)malloc(sizeof(char*)*100000);
 	for(int i=0;i<10000;i++)
 			filenames[i] = (char *)malloc(sizeof(char)*10000);
 	dir = opendir(path);
@@ -201,7 +215,7 @@ void display_dir_R(int flag,char *path)
 
 	for(int i=0;i<count;i++)
 	{
-		stat(filenames[i],&buf);
+		lstat(filenames[i],&buf);
 		if(S_ISDIR(buf.st_mode))
 		{
 			printf("%s\n",filenames[i]);
