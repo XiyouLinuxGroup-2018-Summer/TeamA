@@ -19,6 +19,7 @@
 - 熟练使用Git，不要出现不可描述的操作哦
 - 请勿上传可执行文件、超大二进制文件到仓库
 
+<<<<<<< HEAD
 |姓名    | csdn | 
 |:------|:------|
 |陈健源|[csdn](https://blog.csdn.net/jiange702)|
@@ -26,3 +27,6 @@
 |严欣豪|[csdn](https://blog.csdn.net/galaxyxupt)|
 |陈文浩|[csdn](https://blog.csdn.net/m0_37787222)|
 |娄泽豪|[csdn](https://blog.csdn.net/hepangda)|
+=======
+
+>>>>>>> b22d7ebe9084a4133919cc159378a396f9c21022
