@@ -25,7 +25,6 @@ typedef char QUENODE[256]; // 队列节点
 QUENODE que[4096000];    // 队列
 int rear;
 int front;
-FILE *fp;
 
 void err(const char *err, int line);
 void ls(const char *pathname, const int mode);
@@ -42,72 +41,82 @@ void err(const char *err, int line) {
 }
 
 void ls(const char *pathname, const int mode) {
-    char pathTemp[512];
-    struct stat buf;
-    DIR *dp;
+    char pathTemp[512]; // 创建一个数组 用于存放原路径和文件名
+    struct stat buf; // 存放stat结构体信息
+    DIR *dp; 
     struct dirent *dirp;
     int len;
     int charNum = 120;
 
-    strcpy(pathTemp, pathname);    
-    if(pathTemp[strlen(pathTemp)- 1] != '/') {
-        pathTemp[strlen(pathTemp) + 1] = '\0';
-        pathTemp[strlen(pathTemp)] = '/';
-    }
+    strcpy(pathTemp, pathname);     // 先将pathname存入数组中
 
-    if(lstat(pathTemp, &buf) == -1) {
+    if(lstat(pathTemp, &buf) == -1) { // 如果lstat有错误 则输出 
         err("lstat error", __LINE__);
-        putchar('\n');
+        fprintf(stderr, "%s 有问题\n", pathTemp);
+        rear++;
+        return;
     }
 
-    if(buf.st_mode & __S_IFDIR) {
-        if((dp = opendir(pathTemp)) == NULL) {
+    if(S_ISDIR(buf.st_mode)) {  // 如果是目录
+
+        if(pathTemp[strlen(pathTemp)- 1] != '/') { // 如果原路径最后一个字符不为/ 则加上
+            pathTemp[strlen(pathTemp) + 1] = '\0';
+            pathTemp[strlen(pathTemp)] = '/';
+        }
+
+        if((dp = opendir(pathTemp)) == NULL) {  // 打开路径
             err("opendir error", __LINE__);
-            exit(1);
+            fprintf(stderr, "%s \n", pathTemp);            
+            rear++;
+            return ;
         }
     
-        while((dirp = readdir(dp)) != NULL) {
+        while((dirp = readdir(dp)) != NULL) { // 进行遍历
             char Temp[512] = {0};
             struct stat tempBuf;
 
             len = 0;
 
+        if(!(mode & HAVE_a)) {  // 如果不是a的话, 则不输出隐藏文件
+            if(dirp->d_name[0] == '.') {
+                continue;
+            }
+        }
+
             strcpy(Temp, pathTemp);
-            strcat(Temp, dirp->d_name);
+            strcat(Temp, dirp->d_name); // 将路径和文件名连接在一起
+
+
 
             if(lstat(Temp, &tempBuf) == -1) {
                 err("lstat error", __LINE__);
                 putchar('\n');
             }
-
-            if((tempBuf.st_mode & __S_IFDIR) && (mode & HAVE_R) && (strcmp(dirp->d_name, ".") != 0 && strcmp(dirp->d_name, "..") != 0) ) {
-                fprintf(fp, "front - > %s\n", dirp->d_name);
+            
+            if((tempBuf.st_mode & __S_IFDIR) && (mode & HAVE_R) && (strcmp(dirp->d_name, ".") != 0 && strcmp(dirp->d_name, "..") != 0) ) { // 如果文件为目录的话 则入队列
                 strcpy(que[front], Temp);
                 front++;
             }
 
-            len = show(dirp->d_name, mode, tempBuf); 
-            if(((charNum -= len) < len) && !(mode & HAVE_l)) {
+            len = show(dirp->d_name, mode, tempBuf); //统计输出的字符个数
+
+            if(((charNum -= len) < len) || mode & HAVE_l) {  // 如果剩下的字符不够输出, 则换行
                 printf("\n");
-                charNum = 0;
+                charNum = 120;
             }
-        }
 
-
-
-
+        }   
+    
+    closedir(dp); // 输出完该目录下的文件后, 关闭
     }else {
         show(pathname, mode, buf);
         printf("\n");
     }
-
-    closedir(dp);
 }
 
 int main(int argc, char *argv[]) {
     char pathname[256] = {0};
     int mode;
-    fp = fopen("log", "w+");
     analysisArgv(argc, argv, &mode, pathname);
 
     initQue(pathname);
@@ -115,6 +124,7 @@ int main(int argc, char *argv[]) {
     while(rear != front) {
         printf("%s\n", que[rear]);
         ls(que[rear], mode);
+        printf("\n");
         rear++;
     }
 
@@ -123,21 +133,21 @@ int main(int argc, char *argv[]) {
 }
 
 int show(const char *fileName, const int mode, const struct stat buf) {
-    int len; // 每一个文件数据输出的字符个数
+    int len = 0; // 每一个文件数据输出的字符个数
     
-    if(!(mode & HAVE_a)) {
+    if(!(mode & HAVE_a)) {  
         if(fileName[0] == '.') {
             return 0;
         }
     }
 
-    if(mode & HAVE_i) { // 如果有i  则输出inode
+    if(mode & HAVE_i && !(mode & HAVE_R)) { // 如果有i  则输出inode
         len += printf("\033[;35m%-8d\033[0m", buf.st_ino);
     }
-    if(mode & HAVE_s) { // 如果有s 则输出数据块数
+    if(mode & HAVE_s && !(mode & HAVE_R)) { // 如果有s 则输出数据块数
         len += printf("\033[;36m%-3d\033[0m", buf.st_blocks);
     }
-    if(mode & HAVE_l) { // 如果有l 则要输出好多数据
+    if(mode & HAVE_l && !(mode & HAVE_R)) { // 如果有l 则要输出好多数据)
     // 判断文件类型
         switch(buf.st_mode & S_IFMT) {
             case S_IFSOCK   :   printf("s");    break;
@@ -167,14 +177,15 @@ int show(const char *fileName, const int mode, const struct stat buf) {
         // 输出文件的ctime
         printf("%d ", buf.st_blksize);
         struct tm *localTime = localtime(&buf.st_ctime);  // 这里是将time_t 数据读取成struct tm的操作
+        if(localTime == NULL) {
+            err("err \n", __LINE__);
+            exit(1);
+        }
         printf("\033[;33m%2d月 %2d日\033[0m ", localTime->tm_mon + 1, localTime->tm_mday);
         printf("\033[;32m%02d:%02d\033[0m ", localTime->tm_hour, localTime->tm_min);       
     }
 
     len += printf("\033[;36m%-*s\033[0m", 30, fileName); // 输出文件名 不管什么类型 都要输出
-    if(mode & HAVE_l) { // 如果参数有l 则忽略掉下面的操作
-        putchar('\n');
-    }
     return len;
 }
 
