@@ -1,10 +1,10 @@
 #include <stdio.h>
 
-typedef strcut point {
+typedef struct point {
     int row;
     int cow;
     int num;
-}
+}point;
 
 point Que[100000];
 
@@ -28,37 +28,48 @@ int main(void) {
         0, 0, 0, 1, 0,
 
     };
-    int i = 0;
-    for(; Que[i][0] != 4 && Que[i][1] != 4; i++) {
-        Que[front] = Que[i][0];
-        Que[front][1] = Que[i][1];
-        if(i % 4 == 0) {
+    int rear = 0;
+    front = 1;
+    for(; Que[rear].row != 4 && Que[rear].cow != 4; rear++) {
+        printf("rear : %d front : %d que[rear] : %d %d \n", rear, front, Que[rear].row, Que[rear].cow);
+    if(Que[rear].row + 1 > 0 && Que[rear].row +1 < 5)
+        if(map[Que[rear].row + 1][Que[rear].cow] == 0) {
+            printf("v\n");
+            Que[front].row = Que[rear].row + 1;
+            Que[front].cow = Que[rear].cow;
+            Que[front].num = Que[rear].num + 1;
+            front++;
+        }
+
+    if(Que[rear].row - 1 > 0 && Que[rear].row -1 < 5)
+        if(map[Que[rear].row - 1][Que[rear].cow] != 1) {
+            printf("^\n");
+            Que[front].row = Que[rear].row - 1;
+            Que[front].cow = Que[rear].cow;
+            Que[front].num = Que[rear].num + 1;
+            front++;
+        }
+
+    if(Que[rear].cow + 1 < 5 && Que[rear].cow >= 0)
+        if(map[Que[rear].row][Que[rear].cow + 1] != 1) {
+            printf(">\n");
+            Que[front].row = Que[rear].row;
+            Que[front].cow = Que[rear].cow + 1;
+            Que[front].num = Que[rear].num + 1;
+            front++;
+        }
+
+    if(Que[rear].cow - 1 < 5 && Que[rear].cow - 1 >= 0)
+        if(map[Que[rear].row][Que[rear].cow - 1] != 1) {
+            printf("<\n");
+            Que[front].row = Que[rear].row;
+            Que[front].cow = Que[rear].cow - 1;
+            Que[front].num = Que[rear].num + 1;
+            front++;
+        }
             
-            if(Que[front][0] != 4) {
-                if(map[Que[front][0] + 1][Que[front][1]] != 1)
-                    Que[front][0] += 1;                                                                                                   
-            }
-        }
-        if(i % 4 == 1) {
-            if(Que[front][0] != 0) {
-                if(map[Que[front][0] - 1][Que[front][1]] != 1)
-                    Que[front][0] -= 1;
-            }
-        }
-        if(i % 4 == 2) {
-            if(Que[front][1] != 4) {
-                if(map[Que[front][0]][Que[front][1] + 1] != 1)
-                    Que[front][1] += 1;
-            }
-        }
-        if(i % 4 == 3) {
-            if(Que[front][1] != 4) {
-                if(map[Que[front][0]][Que[front][1] - 1] != 1)
-                    Que[front][1] -= 1;
-            }
-        }
     }
 
-    printf("%d %d\n", Que[i], Que[i]);
+    printf("%d %d %d \n", Que[rear - 1].row, Que[rear - 1].cow , Que[rear - 1].num);
     return 0;
 }
