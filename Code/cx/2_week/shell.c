@@ -7,30 +7,50 @@
 #include<dirent.h>
 #include<readline/readline.h>
 #include<readline/history.h>
+#include<sys/types.h>
+#include<signal.h>
 #define normal 0
 #define out  1
 #define in 2
 #define pipe 4
 #define app 3
-void get_input(char * buf);
+int m = 0;
 void do_cmd(int argcount,char arglist[100][256]);
-int  find_cmd(char *command);
 void explain_input(char *buf,int *argcount,char st[100][256]);
 int main (int argc,char * argv[])
 {
     int i,argcount = 0;
     char st[100][256];
-    char **arg = NULL;
+    FILE * fp;
     char * buf = (char*)malloc(sizeof(char)*256);
+    memset(buf,0,256);
     while(1)
     {
-        memset(buf,0,256);
-        printf("Myshell>>");
-        get_input(buf);
-        if(strcmp(buf,"exit\n")== 0 || strcmp(buf,"logout\n") == 0)
+        system("hostname");
+        printf(">>");
+        signal(SIGINT, SIG_IGN);
+        signal(SIGQUIT, SIG_IGN);
+        signal(SIGSTOP, SIG_IGN);
+        signal(SIGTSTP, SIG_IGN);
+        if((fp = fopen("/tmp/testfile","a+")) == NULL)
+        {
+            printf("文件打开失败\n");
+            exit(1);
+        }
+        //fgets(buf,256,stdin);
+        strcpy(buf,readline(""));
+        fprintf(fp,"%s",buf);
+        fputc('\n',fp);
+        if(strcmp(buf,"exit")== 0)
             break;
+      //  char *p = readline(buf);
         argcount = 0;
+        for(int i;i<strlen(buf);i++)
+            if(buf[i] == '\n')
+               continue;
+        add_history(buf);
         explain_input(buf,&argcount,st);
+        fclose(fp);
         do_cmd(argcount,st);
     }
     if(buf != NULL){
@@ -39,26 +59,10 @@ int main (int argc,char * argv[])
     }
     return 0;
 }
-void get_input(char * buf)
-{
-    int i = 0,m = 0;
-    char ch;
-    while((ch = getchar()) != '\n' && i< 256)
-    {
-        buf[i] = ch;
-        i++;
-    }
-    if(i>256)
-    printf("命令过长\n");
-    buf[i] = '\n';
-    i++;
-    buf[i+1] = '\0';
-    //char *p = readline(buf);
-}
 void explain_input(char *buf,int *argcount,char st[100][256])
 {
     char *p = buf;
-    char *q = buf;
+    char * q = buf;
     int number = 0;
     while(1)
     {
@@ -83,9 +87,9 @@ void explain_input(char *buf,int *argcount,char st[100][256])
     }
     return;
 }
-
 void do_cmd(int argcount,char arglist[100][256])
 {
+    FILE *fp;
     int flag = 0;
     int type = 0;
     int back = 0;
@@ -96,13 +100,8 @@ void do_cmd(int argcount,char arglist[100][256])
     pid_t pid;
     char buf[512];
     for(i = 0;i < argcount;i++)
-        arg[i] = (char*)arglist[i];
+        arg[i] = arglist[i];
         arg[argcount] = NULL;
-         printf("jjjjjjjjjjjj");
-      // readline(arg[0]);
-    //  char *p= readline(arg[0]);
-        add_history(arg[0]);
-        //p = readline(arg[0]);
         if(strcmp(arg[0],"cd") == 0)
         {
             if(chdir(arg[1]) < 0)
@@ -112,6 +111,19 @@ void do_cmd(int argcount,char arglist[100][256])
                  getcwd(buf,512);
                 puts(buf);
             }
+        }
+        arg[0][strlen(arg[0]) +1] = '\0';
+        if(strcmp(arg[0],"history") == 0)
+        {
+            char string[512];
+            if((fp = fopen("/tmp/testfile","r")) == NULL)
+            {
+                printf("文件读取失败\n");
+                exit(1);
+            }
+            while(fscanf(fp,"%s",string)!= EOF)
+                 puts(string);
+            return;
         }
     for(i = 0;i<argcount;i++)
     {
@@ -181,26 +193,25 @@ void do_cmd(int argcount,char arglist[100][256])
                 arg[i] = NULL;
                 int j;
                 for(j = i+1;arg[j] != NULL;j++)
-                {
-                    next[j-i-1] = arg[j];}
+                    next[j-i-1] = arg[j];
                     next[j-i-1] = arg[j];
                     break;
             }
         }
     }
-    if((pid = fork()) < 0)
+    if( (pid = fork()) < 0)
     {
         printf("error\n");
-        exit(1);
+        return;
     }
     switch(type)
     {
         case 0:
                 if(pid == 0)
                 {
-                   if(execvp(arg[0],arg) <0 && strcmp(arg[0],"cd") != 0)
+                   if(execvp(arg[0],arg) <0 && strcmp(arg[0],"cd") != 0 && strcmp(arg[0],"cd") != 0)
                     {
-                        printf("%s :not found\n",arg[0]);
+                        printf("%s :not foundlalal\n",arg[0]);
                         exit(0);
                     }
                     exit(0);
@@ -223,23 +234,24 @@ void do_cmd(int argcount,char arglist[100][256])
         case 2:
                 if(pid == 0)
                 {
-                    if(execvp(arg[0],arg) <0)
+                   /* if(execvp(arg[0],arg) <0)
                     {
                         printf("%s :not found\n",arg[0]);
                         exit(0);
-                    }
+                    }*/
                     fd = open(file,O_RDONLY);
                     dup2(fd,0);
+                    execvp(arg[0],arg);
                     exit(0);
                 }
                 break;
         case 3:
                  if(pid == 0)
                 {
-                   /* if(execvp(arg[0],arg) < 0)
+                    /*if(execvp(arg[0],arg) <0)
                     {
-                        printf("%s %d :not found\n",arg[0],__LINE__);
-                        exit(1);
+                        printf("%s :not found\n",arg[0]);
+                        exit(0);
                     }*/
                     fd = open(file,O_RDWR|O_CREAT|O_APPEND,0644);
                     dup2(fd,1);
@@ -253,34 +265,29 @@ void do_cmd(int argcount,char arglist[100][256])
                     pid_t pid2;
                     int status2;
                     int fd2;
-                    if((pid = fork()) <0)
+                    
+                    if((pid2 = fork()) <0)
                     {
                         printf("fork.error\n");
                         exit(1);
                     }
                     else if(pid2 == 0)
                     {
-                        if(execvp(arg[0],arg) <0)
+                        /*if(execvp(arg[0],arg) <0)
                          {
                             printf("%s :not found\n",arg[0]);
                             exit(0);
-                        }
-                        fd2 = open("/tmp/test",O_CREAT|O_TRUNC|O_WRONLY,0644);
+                        }*/
+                        fd2 = open("/home/cxinsect",O_CREAT|O_TRUNC|O_WRONLY,0644);
                         dup2(fd2,1);
+                        execvp(arg[0],arg);
                         exit(0);
                     }
                     if(waitpid(pid2,&status2,0) != pid2)
-                    {
                         printf("child process exit failed\n");
-                        exit(1);
-                    }
-                   if(execvp(next[0],next) <0)
-                     {
-                        printf("%s :not found\n",arg[0]);
-                        exit(0);
-                    }
-                    fd2 = open("/tmp/test1",O_RDONLY);
+                    fd2 = open("/home/cxinsect",O_RDONLY);
                     dup2(fd2,0);
+                    execvp(next[0],next);
                     exit(0);
                 }
                 break;
@@ -293,8 +300,5 @@ void do_cmd(int argcount,char arglist[100][256])
             return;
         }
         if(waitpid(pid,&status,0) == -1)
-        {
            printf("shibai\n");
-           exit(1);
-        }
 }
