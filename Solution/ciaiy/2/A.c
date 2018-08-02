@@ -4,72 +4,111 @@ typedef struct point {
     int row;
     int cow;
     int num;
+    int his[100];
 }point;
 
-point Que[100000];
+point Que[100000] = {0};
 
 int front;
-
-
 
 int main(void) {
     Que[0].row = 0;
     Que[0].cow = 0;
-    int map[5][5] = {
+    int map[5][5] = {0};
+int now, front;
+now = 0; 
+front = 1;
+Que[0].row = 0;
+Que[0].cow = 0;
+Que[0].his[0]= 0;
+Que[0].num = 0;
 
-        0, 1, 0, 0, 0,
-
-        0, 1, 0, 1, 0,
-
-        0, 0, 0, 0, 0,
-
-        0, 1, 1, 1, 0,
-
-        0, 0, 0, 1, 0,
-
-    };
-    int rear = 0;
-    front = 1;
-    for(; Que[rear].row != 4 && Que[rear].cow != 4; rear++) {
-        printf("rear : %d front : %d que[rear] : %d %d \n", rear, front, Que[rear].row, Que[rear].cow);
-    if(Que[rear].row + 1 > 0 && Que[rear].row +1 < 5)
-        if(map[Que[rear].row + 1][Que[rear].cow] == 0) {
-            printf("v\n");
-            Que[front].row = Que[rear].row + 1;
-            Que[front].cow = Que[rear].cow;
-            Que[front].num = Que[rear].num + 1;
-            front++;
+    for(int i = 0; i < 5; i++) {
+        for(int j = 0; j < 5; j++) {
+            scanf("%d", &(map[i][j]));
         }
-
-    if(Que[rear].row - 1 > 0 && Que[rear].row -1 < 5)
-        if(map[Que[rear].row - 1][Que[rear].cow] != 1) {
-            printf("^\n");
-            Que[front].row = Que[rear].row - 1;
-            Que[front].cow = Que[rear].cow;
-            Que[front].num = Que[rear].num + 1;
-            front++;
-        }
-
-    if(Que[rear].cow + 1 < 5 && Que[rear].cow >= 0)
-        if(map[Que[rear].row][Que[rear].cow + 1] != 1) {
-            printf(">\n");
-            Que[front].row = Que[rear].row;
-            Que[front].cow = Que[rear].cow + 1;
-            Que[front].num = Que[rear].num + 1;
-            front++;
-        }
-
-    if(Que[rear].cow - 1 < 5 && Que[rear].cow - 1 >= 0)
-        if(map[Que[rear].row][Que[rear].cow - 1] != 1) {
-            printf("<\n");
-            Que[front].row = Que[rear].row;
-            Que[front].cow = Que[rear].cow - 1;
-            Que[front].num = Que[rear].num + 1;
-            front++;
-        }
-            
     }
 
-    printf("%d %d %d \n", Que[rear - 1].row, Que[rear - 1].cow , Que[rear - 1].num);
+    for(;Que[now].cow != 4 || Que[now].row != 4; now++) {
+        
+        if(Que[now].row + 1 <= 4 && Que[now].row + 1 >= 0) {
+            if(map[Que[now].row + 1][Que[now].cow] == 0) {
+                Que[front].row = Que[now].row + 1;
+                Que[front].cow = Que[now].cow;
+                for(int i = 0; i <= Que[now].num; i++) {
+                    Que[front].his[i] = Que[now].his[i];
+                }
+                Que[front].num = Que[now].num + 1;
+                Que[front].his[Que[front].num] = now;
+                map[Que[front].row][Que[front].cow] = -1;
+                front++;
+                if(Que[front].row == 4 && Que[front].cow == 4) {
+                    break;
+                }
+            }
+        }
+
+        if(Que[now].row - 1 <= 4 && Que[now].row - 1>= 0) {
+            if(map[Que[now].row - 1][Que[now].cow] == 0) {
+                Que[front].row = Que[now].row - 1;
+                Que[front].cow = Que[now].cow;
+                for(int i = 0; i <= Que[now].num; i++) {
+                    Que[front].his[i] = Que[now].his[i];
+                }
+                Que[front].num = Que[now].num + 1;
+                Que[front].his[Que[front].num] = now;
+                map[Que[front].row][Que[front].cow] = -1;
+                front++;
+                if(Que[front].row == 4 && Que[front].cow == 4) {
+                    break;
+                }
+            }
+        }
+
+
+        if(Que[now].cow + 1 <= 4 && Que[now].cow + 1 >= 0) {
+            if(map[Que[now].row][Que[now].cow + 1] == 0) {
+                Que[front].row = Que[now].row;
+                Que[front].cow = Que[now].cow + 1;
+                for(int i = 0; i <= Que[now].num; i++) {
+                    Que[front].his[i] = Que[now].his[i];
+                }
+                Que[front].num = Que[now].num + 1;
+                                Que[front].his[Que[front].num] = now;
+                map[Que[front].row][Que[front].cow] = -1;     
+                front++;
+                if(Que[front].row == 4 && Que[front].cow == 4) {
+                    break;
+                }
+            }
+        }
+
+
+        if(Que[now].cow - 1 <= 4 && Que[now].cow - 1>= 0) {
+            if(map[Que[now].row][Que[now].cow - 1] == 0) {
+                Que[front].row = Que[now].row;
+                Que[front].cow = Que[now].cow - 1;
+                for(int i = 0; i <= Que[now].num; i++) {
+                    Que[front].his[i] = Que[now].his[i];
+                }
+                Que[front].num = Que[now].num + 1;
+                Que[front].his[Que[front].num] = now;
+                map[Que[front].row][Que[front].cow] = -1;
+                front++;
+                if(Que[front].row == 4 && Que[front].cow == 4) {
+                    break;
+                }
+            }
+        }
+    }
+
+    front -= 1;
+    for(int i = 1; i <= Que[front].num; i++) {
+        int index =  Que[front].his[i];
+        printf("(%d, %d)\n", Que[index].row,  Que[index].cow);
+    }
+
+    printf("(4, 4)\n");
+        
     return 0;
 }
