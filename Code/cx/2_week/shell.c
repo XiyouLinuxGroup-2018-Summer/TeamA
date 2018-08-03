@@ -24,10 +24,12 @@ int main (int argc,char * argv[])
     FILE * fp;
     char * buf = (char*)malloc(sizeof(char)*256);
     memset(buf,0,256);
+    char temp[80];
     while(1)
     {
         system("hostname");
-        printf(">>");
+	getcwd(temp,512);
+       	printf("[cxinsect:%s]",temp);
         signal(SIGINT, SIG_IGN);
         signal(SIGQUIT, SIG_IGN);
         signal(SIGSTOP, SIG_IGN);
@@ -108,8 +110,9 @@ void do_cmd(int argcount,char arglist[100][256])
             printf("文件切换错误\n");
             else
             {
-                 getcwd(buf,512);
-                puts(buf);
+              //   getcwd(buf,512);
+                // printf("[cxinsect:%s]",buf);
+		 return;
             }
         }
         arg[0][strlen(arg[0]) +1] = '\0';
@@ -220,11 +223,6 @@ void do_cmd(int argcount,char arglist[100][256])
         case 1:
                 if(pid == 0)
                 {
-                   /* if(execvp(arg[0],arg) <0)
-                    {
-                        printf("%s :not found\n",arg[0]);
-                        exit(0);
-                    }*/
                     fd = open(file,O_CREAT|O_RDWR|O_TRUNC,0644);
                     dup2(fd,1);
                     execvp(arg[0],arg);
@@ -234,11 +232,6 @@ void do_cmd(int argcount,char arglist[100][256])
         case 2:
                 if(pid == 0)
                 {
-                   /* if(execvp(arg[0],arg) <0)
-                    {
-                        printf("%s :not found\n",arg[0]);
-                        exit(0);
-                    }*/
                     fd = open(file,O_RDONLY);
                     dup2(fd,0);
                     execvp(arg[0],arg);
@@ -248,11 +241,6 @@ void do_cmd(int argcount,char arglist[100][256])
         case 3:
                  if(pid == 0)
                 {
-                    /*if(execvp(arg[0],arg) <0)
-                    {
-                        printf("%s :not found\n",arg[0]);
-                        exit(0);
-                    }*/
                     fd = open(file,O_RDWR|O_CREAT|O_APPEND,0644);
                     dup2(fd,1);
                     execvp(arg[0],arg);
@@ -273,17 +261,12 @@ void do_cmd(int argcount,char arglist[100][256])
                     }
                     else if(pid2 == 0)
                     {
-                        /*if(execvp(arg[0],arg) <0)
-                         {
-                            printf("%s :not found\n",arg[0]);
-                            exit(0);
-                        }*/
                         fd2 = open("/home/cxinsect",O_CREAT|O_TRUNC|O_WRONLY,0644);
                         dup2(fd2,1);
                         execvp(arg[0],arg);
                         exit(0);
                     }
-                    if(waitpid(pid2,&status2,0) != pid2)
+                    if(waitpid(pid2,&status2,0) == -1)
                         printf("child process exit failed\n");
                     fd2 = open("/home/cxinsect",O_RDONLY);
                     dup2(fd2,0);
@@ -301,4 +284,5 @@ void do_cmd(int argcount,char arglist[100][256])
         }
         if(waitpid(pid,&status,0) == -1)
            printf("shibai\n");
+	return;
 }
