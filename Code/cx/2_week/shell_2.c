@@ -37,17 +37,13 @@ int main (int argc,char * argv[])
             printf("文件打开失败\n");
             exit(1);
         }
-        //fgets(buf,256,stdin);
-        strcpy(buf,readline(""));
+        fgets(buf,256,stdin);
         fprintf(fp,"%s",buf);
         fputc('\n',fp);
-        if(strcmp(buf,"exit")== 0)
+        if(strcmp(buf,"exit\n")== 0)
             break;
       //  char *p = readline(buf);
         argcount = 0;
-        for(int i;i<strlen(buf);i++)
-            if(buf[i] == '\n')
-               continue;
         add_history(buf);
         explain_input(buf,&argcount,st);
         fclose(fp);
@@ -193,16 +189,17 @@ void do_cmd(int argcount,char arglist[100][256])
                 arg[i] = NULL;
                 int j;
                 for(j = i+1;arg[j] != NULL;j++)
-                    next[j-i-1] = arg[j];
+                {
+                    next[j-i-1] = arg[j];}
                     next[j-i-1] = arg[j];
                     break;
             }
         }
     }
-    if( (pid = fork()) < 0)
+    if((pid = fork()) < 0)
     {
         printf("error\n");
-        return;
+        exit(1);
     }
     switch(type)
     {
@@ -220,11 +217,11 @@ void do_cmd(int argcount,char arglist[100][256])
         case 1:
                 if(pid == 0)
                 {
-                   /* if(execvp(arg[0],arg) <0)
+                    if(execvp(arg[0],arg) <0)
                     {
                         printf("%s :not found\n",arg[0]);
                         exit(0);
-                    }*/
+                    }
                     fd = open(file,O_CREAT|O_RDWR|O_TRUNC,0644);
                     dup2(fd,1);
                     execvp(arg[0],arg);
@@ -234,25 +231,24 @@ void do_cmd(int argcount,char arglist[100][256])
         case 2:
                 if(pid == 0)
                 {
-                   /* if(execvp(arg[0],arg) <0)
+                    if(execvp(arg[0],arg) <0)
                     {
                         printf("%s :not found\n",arg[0]);
                         exit(0);
-                    }*/
+                    }
                     fd = open(file,O_RDONLY);
                     dup2(fd,0);
-                    execvp(arg[0],arg);
                     exit(0);
                 }
                 break;
         case 3:
                  if(pid == 0)
                 {
-                    /*if(execvp(arg[0],arg) <0)
+                    if(execvp(arg[0],arg) <0)
                     {
                         printf("%s :not found\n",arg[0]);
                         exit(0);
-                    }*/
+                    }
                     fd = open(file,O_RDWR|O_CREAT|O_APPEND,0644);
                     dup2(fd,1);
                     execvp(arg[0],arg);
@@ -265,22 +261,21 @@ void do_cmd(int argcount,char arglist[100][256])
                     pid_t pid2;
                     int status2;
                     int fd2;
-                    
-                    if((pid2 = fork()) <0)
+                    pid2 = fork();
+                    if(pid2 <0)
                     {
                         printf("fork.error\n");
                         exit(1);
                     }
                     else if(pid2 == 0)
                     {
-                        /*if(execvp(arg[0],arg) <0)
+                        if(execvp(arg[0],arg) <0)
                          {
                             printf("%s :not found\n",arg[0]);
                             exit(0);
-                        }*/
+                        }
                         fd2 = open("/home/cxinsect",O_CREAT|O_TRUNC|O_WRONLY,0644);
                         dup2(fd2,1);
-                        execvp(arg[0],arg);
                         exit(0);
                     }
                     if(waitpid(pid2,&status2,0) != pid2)
@@ -288,7 +283,6 @@ void do_cmd(int argcount,char arglist[100][256])
                     fd2 = open("/home/cxinsect",O_RDONLY);
                     dup2(fd2,0);
                     execvp(next[0],next);
-                    exit(0);
                 }
                 break;
             default:
@@ -300,5 +294,8 @@ void do_cmd(int argcount,char arglist[100][256])
             return;
         }
         if(waitpid(pid,&status,0) == -1)
+        {
            printf("shibai\n");
+           exit(1);
+        }
 }
