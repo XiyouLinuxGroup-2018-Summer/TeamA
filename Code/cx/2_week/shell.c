@@ -28,7 +28,7 @@ int main (int argc,char * argv[])
     while(1)
     {
         system("hostname");
-	getcwd(temp,512);
+	    getcwd(temp,512);
        	printf("[cxinsect:%s]",temp);
         signal(SIGINT, SIG_IGN);
         signal(SIGQUIT, SIG_IGN);
@@ -39,13 +39,12 @@ int main (int argc,char * argv[])
             printf("文件打开失败\n");
             exit(1);
         }
-        //fgets(buf,256,stdin);
-        strcpy(buf,readline(""));
+        strcpy(buf,readline(" "));
+     
         fprintf(fp,"%s",buf);
-        fputc('\n',fp);
+        fputc('\n',fp); 
         if(strcmp(buf,"exit")== 0)
             break;
-      //  char *p = readline(buf);
         argcount = 0;
         for(int i;i<strlen(buf);i++)
             if(buf[i] == '\n')
@@ -109,11 +108,7 @@ void do_cmd(int argcount,char arglist[100][256])
             if(chdir(arg[1]) < 0)
             printf("文件切换错误\n");
             else
-            {
-              //   getcwd(buf,512);
-                // printf("[cxinsect:%s]",buf);
-		 return;
-            }
+		         return;
         }
         arg[0][strlen(arg[0]) +1] = '\0';
         if(strcmp(arg[0],"history") == 0)
@@ -205,7 +200,7 @@ void do_cmd(int argcount,char arglist[100][256])
     if( (pid = fork()) < 0)
     {
         printf("error\n");
-        return;
+        exit(0);
     }
     switch(type)
     {
@@ -214,7 +209,7 @@ void do_cmd(int argcount,char arglist[100][256])
                 {
                    if(execvp(arg[0],arg) <0 && strcmp(arg[0],"cd") != 0 && strcmp(arg[0],"cd") != 0)
                     {
-                        printf("%s :not foundlalal\n",arg[0]);
+                        printf("%s :not found\n",arg[0]);
                         exit(0);
                     }
                     exit(0);
@@ -241,7 +236,7 @@ void do_cmd(int argcount,char arglist[100][256])
         case 3:
                  if(pid == 0)
                 {
-                    fd = open(file,O_RDWR|O_CREAT|O_APPEND,0644);
+                    fd = open(file,O_RDWR|O_APPEND,0644);
                     dup2(fd,1);
                     execvp(arg[0],arg);
                     exit(0);
@@ -261,14 +256,14 @@ void do_cmd(int argcount,char arglist[100][256])
                     }
                     else if(pid2 == 0)
                     {
-                        fd2 = open("/home/cxinsect",O_CREAT|O_TRUNC|O_WRONLY,0644);
+                        fd2 = open("/home/cxinsect/shpipetmp",O_CREAT|O_TRUNC|O_WRONLY,0644);
                         dup2(fd2,1);
                         execvp(arg[0],arg);
                         exit(0);
                     }
                     if(waitpid(pid2,&status2,0) == -1)
                         printf("child process exit failed\n");
-                    fd2 = open("/home/cxinsect",O_RDONLY);
+                    fd2 = open("/home/cxinsect/shpipetmp",O_RDONLY);
                     dup2(fd2,0);
                     execvp(next[0],next);
                     exit(0);
