@@ -28,7 +28,7 @@ int main (int argc,char * argv[])
     while(1)
     {
         system("hostname");
-	    getcwd(temp,512);
+	getcwd(temp,512);
        	printf("[cxinsect:%s]",temp);
         signal(SIGINT, SIG_IGN);
         signal(SIGQUIT, SIG_IGN);
@@ -39,8 +39,8 @@ int main (int argc,char * argv[])
             printf("文件打开失败\n");
             exit(1);
         }
-        strcpy(buf,readline(" "));
-     
+	memset(buf,0,sizeof(buf));
+	strcpy(buf,readline(" "));
         fprintf(fp,"%s",buf);
         fputc('\n',fp); 
         if(strcmp(buf,"exit")== 0)
