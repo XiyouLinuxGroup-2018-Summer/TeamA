@@ -43,6 +43,10 @@ bool hasread(vector<struct status> vec, struct status val) {
 int main(void) {
     int cola, a, b;
     while(cin>>cola>>a>>b) {
+    	if(a == 0 && b == 0 && cola == 0) {
+            break;
+        }
+    	int flag = false;
         if(cola % 2 != 0) {
             cout<<"NO"<<endl;
             continue;
@@ -51,10 +55,11 @@ int main(void) {
             cout<<"NO"<<endl;
             continue;
         }
-
-        if(a == 0 && b == 0 && cola == 0) {
-            break;
-        }
+		
+		if(a == b && b == cola) {
+			cout<<"NO"<<endl;
+			continue;
+		}
 
         queue<struct status> que;
         vector<struct status> vec;
@@ -76,6 +81,7 @@ int main(void) {
             que.pop();
             if((temp.b.now == temp.cola.size / 2 && temp.a.now == temp.cola.size / 2) || (temp.a.now == temp.cola.size / 2 && temp.cola.now == temp.cola.size / 2) || (temp.b.now == temp.cola.size / 2 && temp.cola.now == temp.cola.size / 2)) {              
                 cout<<temp.num<<endl;
+                flag = 1;
                 break;
             }else {
 
@@ -83,6 +89,7 @@ int main(void) {
                 for(int i = 0; i < 6; i++) {
                     arr[i] = temp;
                 }
+                //printf("**");
                 // a --> b
                 swap(arr[0].a, arr[0].b, vec);
                 if(!hasread(vec, arr[0])) {
@@ -129,5 +136,6 @@ int main(void) {
             }
 
         }
+        if (!flag) cout<<"NO"<<endl;
     }
 }
