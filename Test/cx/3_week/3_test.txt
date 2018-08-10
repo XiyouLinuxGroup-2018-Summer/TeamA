@@ -1,0 +1,173 @@
+
+*************************************
+1. D
+
+2. 0~1250025000
+
+
+*************************************
+
+3. 
+#include<stdio.h>
+#include<pthread.h>
+#include<stdlib.h>
+void *thread3(void * arg)
+{
+    printf("C");
+    return NULL;
+}
+void *thread2(void * arg)
+{
+     pthread_t thid3;
+     printf("B");
+    pthread_create(&thid3,NULL,(void*)&thread3,NULL);
+    pthread_join(thid3,NULL);
+    return NULL;
+}
+void * thread (void *arg)
+{
+    pthread_t thid2;
+    while(1)
+    {
+        printf("A");
+        pthread_create(&thid2,NULL,(void*)&thread2,NULL);
+        pthread_join(thid2,NULL);
+    }
+    return NULL;
+}
+int main (void)
+{
+    pthread_t thid1;
+    pthread_create(&thid1,NULL,(void*)&thread,NULL);
+    pthread_join(thid1,NULL);
+    return 0;
+}
+4.
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<fcntl.h>
+#include<sys/types.h>
+#include<sys/stat.h>
+#include<pthread.h>
+#include<string.h>
+#define k 1024
+#define BUFF_SIZE 100*k
+typedef struct process {
+    pthread_mutex_t mutex;
+    pthread_cond_t empty;
+    pthread_cond_t full;
+    int wpos,rpos;
+    char buf[BUFF_SIZE][80];
+}PRO;
+char st[BUFF_SIZE];
+int fd;
+void init(PRO *p)                                             //初始化
+{
+    pthread_mutex_init(&p->mutex,NULL);
+    pthread_cond_init(&p->empty,NULL);
+    pthread_cond_init(&p->full,NULL);
+    p->rpos = 0;
+    p->wpos = 0;
+}
+void get_info(PRO*p,char * string)                            //让数据进入缓冲区并写入文件
+{
+    pthread_mutex_lock(&p->mutex);
+    while((p->wpos+1) % BUFF_SIZE == p->rpos)
+      pthread_cond_wait(&p->full,&p->mutex);
+     strcpy(p->buf[p->wpos],string);
+     if(BUFF_SIZE <= p->wpos)
+      p->wpos = 0;
+    if((fd = open("/tmp/istest",O_CREAT|O_RDWR|O_TRUNC,S_IRWXU)) == -1)
+    {
+        printf("文件创作失败\n");
+        exit(1);
+    }
+    write(fd,p->buf[p->wpos],sizeof(p->buf[p->wpos]));
+    p->wpos++;
+    close(fd);
+    pthread_mutex_unlock(&p->mutex);
+     pthread_cond_signal(&p->empty);
+    
+}
+void  read_info(PRO *p)                                               //把数据从文件读入缓冲区
+{
+    while(1)
+    {
+        pthread_mutex_lock(&p->mutex);
+        while(p->rpos == p->wpos)
+        pthread_cond_wait(&p->empty,&p->mutex);
+        while(p->rpos >= BUFF_SIZE)
+        p->rpos = 0;
+        if((fd = open("/tmp/istest",O_RDONLY)) == -1)
+        {
+            printf("文件读取失败\n");
+            exit(1);
+        }
+        read(fd,p->buf[p->rpos],sizeof(p->buf[p->rpos]));
+        printf("B 读出：");
+        puts(p->buf[p->rpos]);
+        if(strcmp(p->buf[p->rpos],"down") == 0)
+        exit(0);
+        p->rpos++;
+        close(fd);
+        pthread_mutex_unlock(&p->mutex);
+        pthread_cond_signal(&p->full);
+    }
+}
+PRO buffer;    //定义结构体变量
+void * A_process(void *arg)                //线程A负责写入文件
+{
+     char st[4][8] = {"chinese","math","english","down"};
+     while(1)
+     {
+        for(int i = 0;i<4;i++)
+        {
+            sleep(2);
+            printf("A写入%s \n",st[i]);
+            get_info(&buffer,st[i]);
+        }
+     }
+     pthread_exit(NULL);
+}
+void * B_process(void * arg)                        //线程B负责读出文件
+{
+    
+    read_info(&buffer);
+}
+void destory(PRO * p)                            //销毁互斥量和条件变量
+{
+    pthread_mutex_destroy(&p->mutex);
+    pthread_cond_destroy(&p->empty);
+    pthread_cond_destroy(&p->full);
+}
+int main (void)
+{
+    pthread_t thid1,thid2;
+    void *ret;
+    init(&buffer);
+    pthread_create(&thid1,NULL,A_process,NULL);
+    pthread_create(&thid2,NULL,B_process,NULL);
+    pthread_join(thid1,&ret);
+    pthread_join(thid2,&ret);
+    destory(&buffer);
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+**************************************
+pthread_create(&pthread_id[i],NULL,(void*)&thread_worker,&i);
+
+
+
