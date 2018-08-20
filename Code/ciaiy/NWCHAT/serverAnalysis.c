@@ -8,7 +8,9 @@ void analysis(cJSON *root, int fd) {
     if(type == REGISTER) { 
         registerID(root, fd);
     }
-
+    if(type == LOGIN) {
+        login(root, fd);
+    }
         // case ADD_FRIEND : addFrd(sendID, recvID, msg); break;
         // case ADD_GROUP : addGrp(sendID, recvID, msg); break; 
         // case MSG_PRIVATE : sendMsg(sendID, recvID, msg); break;
