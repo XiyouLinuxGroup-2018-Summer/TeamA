@@ -69,8 +69,9 @@ void start(int port)
             if (recv(events[i].data.fd, &size, 4, 0) == 0)
             {
                 sprintf(sqlMsg, "delete from onlineList where fd = %d;", events[i].data.fd);
+                int userID = sql_get_ID_by_fd(events[i].data.fd);
                 sql_run(&sql, 0, sqlMsg);
-
+                sendFrdOnline(userID);
                 ev.data.fd = events[i].data.fd;
                 ev.events = EPOLL_CTL_DEL;
                 epoll_ctl(epfd, EPOLL_CTL_DEL, events[i].data.fd, &ev);
@@ -78,16 +79,17 @@ void start(int port)
             else
             {
 
-                /* 用户发包 */
+                /* 用户发包 */ 
                 char *data = (char *)malloc(size + 1);
                 data[size] = '\0';
-                printf("收到一个来自%d的包\n", events[i].data.fd);
+                printf("收到一个来自%d的包", events[i].data.fd);
                 if (recv(events[i].data.fd, data, size, 0) < 0)
                 {
                     err("recv data error", __LINE__);
                 }
 
                 cJSON *root = cJSON_Parse(data);
+                printf("包内容：%s\n", cJSON_PrintUnformatted(root));
                 free(data);
                 pthread_t th;
                 analysisArg_t *arg = (analysisArg_t *)malloc(sizeof(analysisArg_t));

@@ -16,10 +16,17 @@ void *analysis(void *arg)
     {
         login(root, fd);
     }
-    // case ADD_FRIEND : addFrd(sendID, recvID, msg); break;
+    if (type == REQUEST_ADD_FRD)
+    {
+        addFrd(root);
+    }
+    if (type == RETURN_ADD_FRD)
+    {
+        retAddFrd(root);
+    }
     // case ADD_GROUP : addGrp(sendID, recvID, msg); break;
     // case MSG_PRIVATE : sendMsg(sendID, recvID, msg); break;
-    // case MSG_GROUP : sendMsg(sendID, recvID, msg); break;
+    // case MSG_GROUP : sendMsg(sendID, recvID, msg); break; 
     // case SEND_FILE : sendFile(sendID, recvID, fileName, fileIndex, flieSum, fileBlock); break;
     // case DEL_FRIEND : delFrd(sendID, ctlID); break;
     // case QUIT_GROUP : quitGrp(sendID, ctlID); break;

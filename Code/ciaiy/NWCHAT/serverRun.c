@@ -2,6 +2,49 @@
 
 #include "server.h"
 
+/* 添加好友返回函数 */
+void retAddFrd(cJSON *root)
+{
+    int ret = cJSON_GetObjectItem(root, "return")->valueint;
+    int recvID = cJSON_GetObjectItem(root, "recvID")->valueint;
+    int sendID = cJSON_GetObjectItem(root, "sendID")->valueint;
+
+    if (cJSON_GetObjectItem(root, "return")->valueint)
+    {
+        sql_be_frd(recvID, sendID);
+        cJSON_Delete(root);
+        root = cJSON_CreateObject();
+        root = sql_get_info(sendID, 0, recvID);
+        cJSON_AddNumberToObject(root, "type", FRESHFRD);
+        cJSON_AddNumberToObject(root, "recvID", sendID);
+        addSendQue(root);
+        printf("%s\n", cJSON_PrintUnformatted(root));
+        root = sql_get_info(recvID, 0, sendID);
+        cJSON_AddNumberToObject(root, "type", FRESHFRD);
+        cJSON_AddNumberToObject(root, "recvID", recvID);
+        addSendQue(root);
+        printf("%s\n", cJSON_PrintUnformatted(root));
+    }
+    else
+    {
+        //cJSON_Delete(root);
+        //root = cJSON_CreateObject();
+    }
+}
+
+/* 添加好友请求函数 */
+void addFrd(cJSON *root)
+{
+    int sendID = cJSON_GetObjectItem(root, "sendID")->valueint;
+    int recvID = cJSON_GetObjectItem(root, "ctlID")->valueint;
+    cJSON_Delete(root);
+    root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "sendID", sendID);
+    cJSON_AddNumberToObject(root, "recvID", recvID);
+    cJSON_AddNumberToObject(root, "type", REQUEST_ADD_FRD);
+    addSendQue(root);
+}
+
 /* 登录函数 */
 void login(cJSON *root, int fd)
 {
@@ -27,6 +70,7 @@ void login(cJSON *root, int fd)
         cJSON_AddNumberToObject(root, "fd", 0);
         addSendQue(root);
         sendInitInfo(userID);
+        sendFrdOnline(userID);
     }
     else
     {
@@ -38,6 +82,25 @@ void login(cJSON *root, int fd)
         addSendQue(root);
     }
 }
+
+/* 广播自己状态 */
+void sendFrdOnline(int userID) {
+    int num = 0;
+    int *arr;
+    
+    // 给群广播
+    num = sql_get_onlineFrd(userID, 0, &arr);
+    printf("进入了sendFrdOnline 当前用户在线%d\n", num);
+    for(int i = 0;i < num; i++) {
+        cJSON *root = sql_get_info(arr[i], 0, userID);
+        cJSON_AddNumberToObject(root, "type", FRESHFRD);
+        cJSON_AddNumberToObject(root, "recvID", arr[i]);
+        cJSON_AddNumberToObject(root, "sendID", userID);
+        printf("当当当~%s\n", cJSON_PrintUnformatted(root));
+        addSendQue(root);
+    }
+}
+
 
 /* 注册函数 */
 void registerID(cJSON *root, int fd)
@@ -93,7 +156,7 @@ void addSendQue(cJSON *data)
         {
             printf("用户不在线");
             cJSON_Delete((cJSON *)data);
-            return ;
+            return;
         }
     }
 
@@ -132,6 +195,7 @@ void sendInitInfo(int userID)
     cJSON_AddItemToObject(frdRoot, "frdInfo", frdArr);
     cJSON_AddNumberToObject(frdRoot, "frdNum", frdNum);
     cJSON_AddNumberToObject(frdRoot, "recvID", userID);
+    cJSON_AddNumberToObject(frdRoot, "type", INITFRD);
     addSendQue(frdRoot);
 
     /* 发送群信息 */
@@ -141,6 +205,6 @@ void sendInitInfo(int userID)
     cJSON_AddItemToObject(grpRoot, "grpInfo", grpArr);
     cJSON_AddNumberToObject(grpRoot, "grpNum", grpNum);
     cJSON_AddNumberToObject(grpRoot, "recvID", userID);
-    addSendQue(grpRoot);
-
+    cJSON_AddNumberToObject(grpRoot, "type", INITGRP);
+    //addSendQue(grpRoot);
 }
