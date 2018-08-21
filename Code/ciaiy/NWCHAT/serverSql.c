@@ -1,5 +1,88 @@
 #include "server.h"
 
+int sql_get_ID_by_fd(int fd)
+{
+    char sqlMsg[512];
+    MYSQL_RES *sqlRes;
+    MYSQL_ROW sqlRow;
+    int ID;
+
+    sprintf(sqlMsg, "select ID from onlineList where fd = %d;", fd);
+    sqlRes = sql_run(&sql, 1, sqlMsg);
+    while ((sqlRow = mysql_fetch_row(sqlRes)))
+    {
+        ID = atoi(sqlRow[0]);
+    }
+    mysql_free_result(sqlRes);
+
+    return ID;
+}
+
+int sql_get_onlineFrd(int userID, int groupID, int **arr)
+{
+    int onlineFrdNum = 0;
+    char sqlMsg[512];
+    MYSQL_RES *sqlRes;
+    MYSQL_ROW sqlRow;
+    (*arr) = (int *)malloc(4 * FRD_MAX);
+    memset(*arr, 0, 4 * FRD_MAX);
+
+    if (groupID)
+    {
+    }
+    else
+    {
+        sprintf(sqlMsg, "select frdID from frdList where ID = %d", userID);
+        sqlRes = sql_run(&sql, 1, sqlMsg);
+        while ((sqlRow = mysql_fetch_row(sqlRes)))
+        {
+            int frdID = atoi(sqlRow[0]);
+            if (sql_is_online(frdID))
+            {
+                (*arr)[onlineFrdNum++] = frdID;
+                printf("好友%d在线\n", frdID);
+            }
+        }
+    }
+
+    return onlineFrdNum;
+}
+
+/* 得到某个成员的信息 */
+cJSON *sql_get_info(int userID, int groupID, int ctlID)
+{
+    char sqlMsg[512];
+    MYSQL_RES *sqlRes;
+    MYSQL_ROW sqlRow;
+    int status;
+    int online;
+    char *name;
+    cJSON *item = cJSON_CreateObject();
+
+    name = sql_get_name(ctlID);
+    status = sql_get_status(userID, groupID, ctlID);
+    online = sql_is_online(ctlID) ? 1 : 0;
+
+    cJSON_AddNumberToObject(item, "ID", ctlID);
+    cJSON_AddStringToObject(item, "name", name);
+    cJSON_AddNumberToObject(item, "status", status);
+    cJSON_AddNumberToObject(item, "online", online);
+
+    return item;
+}
+
+/* 成为好友 */
+void sql_be_frd(int AID, int BID)
+{
+    char sqlMsg[512];
+
+    sprintf(sqlMsg, "insert into frdList (ID, frdID, status)value(%d, %d, 0);", AID, BID);
+    sql_run(&sql, 0, sqlMsg);
+    sprintf(sqlMsg, "insert into frdList (ID, frdID, status) value (%d, %d, 0);", BID, AID);
+    sql_run(&sql, 0, sqlMsg);
+}
+
+/* 得到群成员列表 */
 cJSON *sql_get_memList(int grpID)
 {
     char sqlMsg[512];
@@ -15,16 +98,8 @@ cJSON *sql_get_memList(int grpID)
     sqlRes = sql_run(&sql, 1, sqlMsg);
     while ((sqlRow = mysql_fetch_row(sqlRes)))
     {
-        cJSON *item = cJSON_CreateObject();
-        ID = atoi(sqlRow[0]);
-        name = sql_get_name(ID);
-        status = sql_get_status(0, grpID, ID);
-        online = sql_is_online(ID) ? 1 : 0;
-
-        cJSON_AddNumberToObject(item, "ID", ID);
-        cJSON_AddStringToObject(item, "name", name);
-        cJSON_AddNumberToObject(item, "status", status);
-        cJSON_AddNumberToObject(item, "online", online);
+        cJSON *item;
+        item = sql_get_info(0, grpID, atoi(sqlRow[0]));
         cJSON_AddItemToArray(memArr, item);
     }
     mysql_free_result(sqlRes);
@@ -32,6 +107,7 @@ cJSON *sql_get_memList(int grpID)
     return memArr;
 }
 
+/* 得到群列表 */
 int sql_get_grpList(cJSON *arr, int userID)
 {
     char sqlMsg[512];
@@ -60,6 +136,7 @@ int sql_get_grpList(cJSON *arr, int userID)
     return grpNum;
 }
 
+/* 得到成员状态 */
 int sql_get_status(int userID, int groupID, int ctlID)
 {
     char sqlMsg[512];
@@ -93,32 +170,21 @@ int sql_get_status(int userID, int groupID, int ctlID)
     return status;
 }
 
+/* 得到好友列表信息 */
 int sql_get_frdList(cJSON *arr, int userID)
 {
     char sqlMsg[512];
     MYSQL_RES *sqlRes;
-    MYSQL_ROW sqlRow;
-    int ID;
-    int status;
-    int online;
-    char *name;
     int frdNum = 0;
+    MYSQL_ROW sqlRow;
 
     sprintf(sqlMsg, "select frdID from frdList where ID = %d", userID);
     sqlRes = sql_run(&sql, 1, sqlMsg);
     serr(&sql, "get frdLis", __LINE__);
     while ((sqlRow = mysql_fetch_row(sqlRes)))
     {
-        cJSON *item = cJSON_CreateObject();
-        ID = atoi(sqlRow[0]);
-        name = sql_get_name(ID);
-        status = sql_get_status(userID, 0, ID);
-        online = sql_is_online(ID) ? 1 : 0;
-
-        cJSON_AddNumberToObject(item, "ID", ID);
-        cJSON_AddStringToObject(item, "name", name);
-        cJSON_AddNumberToObject(item, "status", status);
-        cJSON_AddNumberToObject(item, "online", online);
+        cJSON *item;
+        item = sql_get_info(userID, 0, atoi(sqlRow[0]));
         cJSON_AddItemToArray(arr, item);
         frdNum++;
     }
@@ -127,6 +193,7 @@ int sql_get_frdList(cJSON *arr, int userID)
     return frdNum;
 }
 
+/* 检查是否在线 */
 int sql_is_online(int ID)
 {
     char sqlMsg[512];
@@ -145,6 +212,7 @@ int sql_is_online(int ID)
     return sendfd;
 }
 
+/* 得到昵称 */
 char *sql_get_name(int ID)
 {
     char *name;
@@ -174,6 +242,7 @@ char *sql_get_name(int ID)
     return name;
 }
 
+/* 检查密码 */
 int sql_verify_passwd(cJSON *root, int userID)
 {
     char sqlMsg[512];
