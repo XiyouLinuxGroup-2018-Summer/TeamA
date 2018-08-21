@@ -1,10 +1,11 @@
 /* 本文件包含服务器运行的大部分函数 */
 
 #include "server.h"
-  
+
 /* 登录函数 */
-void login(cJSON *root, int fd) {
-    int flag = 0;   
+void login(cJSON *root, int fd)
+{
+    int flag = 0;
     char sqlMsg[512];
     MYSQL_ROW sqlRow;
     MYSQL_RES *sqlRes;
@@ -15,28 +16,32 @@ void login(cJSON *root, int fd) {
     flag = sql_verify_passwd(root, userID);
     cJSON_Delete(root);
 
-    if(flag) {
-        sql_add_onlineList(userID, fd); 
+    if (flag)
+    {
+        sql_add_onlineList(userID, fd);
         root = cJSON_CreateObject();
         cJSON_AddStringToObject(root, "name", sql_get_name(userID));
         cJSON_AddNumberToObject(root, "status", 1);
         cJSON_AddNumberToObject(root, "recvID", userID);
         cJSON_AddNumberToObject(root, "sendID", 0);
         cJSON_AddNumberToObject(root, "fd", 0);
-        pthread_create(&temp, 0, addSendQue, (void*)root);
+        addSendQue(root);
         sendInitInfo(userID);
-    }else{
+    }
+    else
+    {
         root = cJSON_CreateObject();
         cJSON_AddNumberToObject(root, "status", 0);
         cJSON_AddNumberToObject(root, "recvID", userID);
         cJSON_AddNumberToObject(root, "sendID", 0);
         cJSON_AddNumberToObject(root, "fd", fd);
-        pthread_create(&temp, 0, addSendQue, (void*)root);
+        addSendQue(root);
     }
 }
 
 /* 注册函数 */
-void registerID(cJSON *root, int fd) {
+void registerID(cJSON *root, int fd)
+{
     int nowID;
     int dataNum;
     char name[32];
@@ -70,23 +75,25 @@ void registerID(cJSON *root, int fd) {
     addSendQue(send);
 }
 
-
-
 /* 添加发送队列函数 */
-void *addSendQue(void *data) {
-    /* 可能会有线程安全问题 */
+void addSendQue(cJSON *data)
+{
     int sendfd;
     int recvID = cJSON_GetObjectItem((cJSON *)data, "recvID")->valueint;
 
     sendfd = sql_is_online(recvID);
 
-    if(sendfd ==  0) {
-        if(cJSON_HasObjectItem((cJSON *)data, "fd")) {
+    if (sendfd == 0)
+    {
+        if (cJSON_HasObjectItem((cJSON *)data, "fd"))
+        {
             sendfd = cJSON_GetObjectItem((cJSON *)data, "fd")->valueint;
-        }else {
+        }
+        else
+        {
             printf("用户不在线");
             cJSON_Delete((cJSON *)data);
-            return NULL;
+            return ;
         }
     }
 
@@ -94,13 +101,12 @@ void *addSendQue(void *data) {
     int len = cJSON_ToPackage((cJSON *)data, &sendPack);
     send(sendfd, sendPack, len, 0);
     free(sendPack);
-    printf("end send");
-
-    return NULL;
+    printf("end send\n");
 }
 
 /* 将json数据转换成字符串 */
-int cJSON_ToPackage(cJSON *root, char **sendPack) {
+int cJSON_ToPackage(cJSON *root, char **sendPack)
+{
     char *temp;
     int len;
 
@@ -110,13 +116,31 @@ int cJSON_ToPackage(cJSON *root, char **sendPack) {
     strcpy((*sendPack) + 4, temp);
     *(int *)(*sendPack) = len - 4;
     free(temp);
-    
+
     cJSON_Delete(root);
     return len;
 }
 
 /* 登录成功发送信息 */
-sendInitInfo(userID) {
-    
-}
+void sendInitInfo(int userID)
+{
+    printf("进入send Init Info函数\n");
+    /* 发送好友信息 */
+    cJSON *frdArr = cJSON_CreateArray();
+    int frdNum = sql_get_frdList(frdArr, userID);
+    cJSON *frdRoot = cJSON_CreateObject();
+    cJSON_AddItemToObject(frdRoot, "frdInfo", frdArr);
+    cJSON_AddNumberToObject(frdRoot, "frdNum", frdNum);
+    cJSON_AddNumberToObject(frdRoot, "recvID", userID);
+    addSendQue(frdRoot);
 
+    /* 发送群信息 */
+    cJSON *grpArr = cJSON_CreateArray();
+    int grpNum = sql_get_grpList(grpArr, userID);
+    cJSON *grpRoot = cJSON_CreateObject();
+    cJSON_AddItemToObject(grpRoot, "grpInfo", grpArr);
+    cJSON_AddNumberToObject(grpRoot, "grpNum", grpNum);
+    cJSON_AddNumberToObject(grpRoot, "recvID", userID);
+    addSendQue(grpRoot);
+
+}

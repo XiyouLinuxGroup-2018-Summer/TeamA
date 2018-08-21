@@ -1,5 +1,21 @@
 #include "client.h"
 
+int NOW;
+
+void *recvFun(void *arg) {
+    // 进行收包
+    while(1) {
+        int len;
+        recv(clientSocket, &len, 4, 0);
+        char *pack = (char *)malloc(len + 1);
+        pack[len] = 0;
+        recv(clientSocket, &pack, len, 0);
+        cJSON *root = cJSON_Parse(pack);
+        analysis(root);
+        free(pack);
+    }
+}
+
 void start(int port) {
     int choice;
     
@@ -77,6 +93,23 @@ void login() {
     status = cJSON_GetObjectItem(root, "status")->valueint;
     if(status) {
         printf("登陆成功\n");
+        pthread_t recvThread;
+        pthread_create(&recvThread, NULL, recvFun, NULL);
+        system("clear");
+        int i = 0;
+        while(1) {
+            if(i%10 == 0) {
+                printf("\33[3%dm",i/10);
+            }
+                printf("正在登录中...%d%%", i/10);
+                printf("\33[6D\n");
+                usleep(50000);
+                system("clear");
+                i++;
+            if(nixxx) {
+                break;
+            }
+        }
     }else {
         printf("登录失败\n");
         sleep(1);
