@@ -125,14 +125,14 @@ int check_login_passwd(int id, char *passwd)
     res = mysql_store_result(&mysql);
     row = mysql_fetch_row(res);
     int m = 0;
-    if (row == NULL) //不是很清真
-        m = 0;
-    else
+    if (row != NULL) //不是很清真
     {
-        if (strcmp(passwd, row[2]) == 0)
+         if(strcmp(passwd, row[2]) == 0)
             m = 1;
     }
-    printf("%d\n", m);
+  //  printf("%d\n", m);
+   // printf("%s\n",row[2]);
+   // printf("%s\n",passwd);
     mysql_free_result(res);
     return m;
 }
@@ -257,33 +257,6 @@ int get_guys_sockfd(int recv_id)
     }
     return sockfd;
 }
-/*梦寐中的私聊（测试版）*/
-int chat_private(int sockfd,char * string)
-{
-    int send_fd,recv_fd;
-    char save_time[20],msg[100];
-    cJSON * node = cJSON_Parse(string);
-    send_fd = cJSON_GetObjectItem(node,"send_fd")->valueint;
-    recv_fd = cJSON_GetObjectItem(node,"recv_fd")->valueint;
-    time_t timep;
-    time(&timep);
-    strcpy(save_time,ctime(&timep));
-    int len = strlen(save_time);
-    save_time[len - 1] = '\0';
-    cJSON_AddStringToObject(node,"time",save_time);
-    char * pass  = cJSON_PrintUnformatted(node);
-    if(record_private(send_fd,recv_fd,pass,1))
-        printf("记录保存成功\n");
-    else
-    {
-        printf("保存失败\n");
-        return 0;
-    }
-    int f_sock = get_guys_sockfd(recv_fd);
-    add_file_size(f_sock,pass);
-    cJSON_Delete(node);
-    return 1;
-}
 /**********************私聊记录保存(离线还是在线)*********************/
 int record_private(int send_fd, int recv_fd, char *msg, int status)
 {
@@ -295,6 +268,36 @@ int record_private(int send_fd, int recv_fd, char *msg, int status)
         printf("record_private:%s\n", mysql_error(&mysql));
         return 0;
     }
+    return 1;
+}
+/*梦寐中的私聊（测试版）*/
+int chat_private(int sockfd,char * string)
+{
+    int send_fd,recv_fd;
+    char save_time[20],msg[100];
+    printf("%s\n",string);
+    cJSON * node = cJSON_Parse(string);
+    send_fd = cJSON_GetObjectItem(node,"send_fd")->valueint;
+    recv_fd = cJSON_GetObjectItem(node,"recv_fd")->valueint;
+    printf("cc%d\n",send_fd);
+    time_t timep;
+    time(&timep);
+    strcpy(save_time,ctime(&timep));
+    int len = strlen(save_time);
+    save_time[len - 1] = '\0';
+    cJSON_AddStringToObject(node,"time",save_time);
+    char * item = cJSON_GetObjectItem(node,"content")->valuestring;
+    cJSON_AddStringToObject(node,"content",item);
+    char * pass  = cJSON_PrintUnformatted(node);
+    if(record_private(send_fd,recv_fd,pass,1))
+        printf("记录保存成功\n");
+    else
+    {
+        printf("保存失败\n");
+    }
+    int f_sock = get_guys_sockfd(recv_fd);
+    add_file_size(f_sock,pass);
+    cJSON_Delete(node);
     return 1;
 }
 /*获得好友的在线状态*/
@@ -404,18 +407,21 @@ void reg(int client, char *string)
 void login(int client, char *string)             //登录必须与连接放在一块不然肯定会出现用户数量错误
 {  
     cJSON *node = cJSON_Parse(string);
+    printf("%s\n",string);
     int item = cJSON_GetObjectItem(node, "id")->valueint;
     usr[usr_number].id = item;
-    strcpy(usr[usr_number].usrname,cJSON_GetObjectItem(node,"name")->valuestring);
+    printf("login_id:%d\n",usr[usr_number].id);
+  //  strcpy(usr[usr_number].usrname,cJSON_GetObjectItem(node,"name")->valuestring);
     strcpy(usr[usr_number].passwd,cJSON_GetObjectItem(node,"passwd")->valuestring);
    // cJSON_AddNumberToObject(node,"status",ON_LINE);
-    modify_status(item,ON_LINE);
     usr_number++;                              //登陆之后让用户数量加一
-    uid = item;                               //之前测试所用，先保留
+   // uid = item;                               //之前测试所用，先保留
     char temp[15];
-    strcmp(temp, cJSON_GetObjectItem(node, "passwd")->valuestring);
+    strcpy(temp, cJSON_GetObjectItem(node, "passwd")->valuestring);
+    printf("%s\n",temp);
     if (connect_to_mysql())
     {
+         modify_status(item,ON_LINE);
         if (check_usr_exist(item))
         {
             if (check_login_passwd(item, temp))
@@ -463,10 +469,12 @@ int main(int argc, char *argv[])
     ret = listen(sockfd, BACKLOG);
     printf("等待客户端连接.......\n");
     int epollfd = epoll_create(100);
+  //  int temp = 1;
+   // setsockopt(ret,SOL_SOCKET,SO_REUSEADDR,&temp,sizeof(int)); 
     ev.data.fd = sockfd;
     ev.events = EPOLLIN | EPOLLET;
     epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev);
-    connect_to_mysql();
+   // connect_to_mysql();
     int j = 0;
     while (1)
     {
@@ -501,15 +509,27 @@ int main(int argc, char *argv[])
                     printf("客户端退出\n");
                     continue;
                 }
+                printf("zzz\n");
                 char *str = (char *)malloc(sizeof(char) * number);
                 int c = recv(ret, str, number, 0);
-                connect_to_mysql();
-                cJSON *node = cJSON_Parse(str);
-                FRIEND_INFO ff;
-                cJSON * json = cJSON_CreateObject();
-                if(strcmp("start",cJSON_GetObjectItem(node,"signal")->valuestring) == 0)
+              //  connect_to_mysql();
+               // cJSON *node = cJSON_Parse(str);
+                login(ret,str);
+                printf("aaaa\n");
+                bzero(&client_addr, sizeof(buf));
+                m = recv(ret, &number, 16, 0);
+                if (m == 0)
                 {
-                    if(get_friend_list(2,ret,&ff))
+                    printf("客户端退出\n");
+                    continue;
+                }
+                printf("zzz\n");
+                str = (char *)malloc(sizeof(char) * number);
+                recv(ret, str, number, 0);
+                cJSON *node = cJSON_Parse(str);
+                if(cJSON_GetObjectItem(node,"signal")->valueint == 4)
+                {
+                    if(chat_private(ret,str))
                     {
                     /* cJSON_AddStringToObject(json,"signal","you are lucky");
                         char * pass = cJSON_PrintUnformatted(json);
@@ -519,33 +539,9 @@ int main(int argc, char *argv[])
                     else
                     printf("stupid\n");
                 }
-                else
-                printf("stulid2\n");
-                /*   int item = cJSON_GetObjectItem(node,"id")->valueint;
-                add_friends(uid,item,1,1);*/
-                // printf("%s\n",cJSON_GetObjectItem(node,"passwd")->valuestring);
-                //char * st = (char *)malloc(sizeof(char)*30);
-                /******************一个不清真的问题**************************/
-                /*
-                if (check_login_passwd(cJSON_GetObjectItem(node, "id")->valueint, cJSON_GetObjectItem(node, "passwd")->valuestring))
-                {
-                    cJSON *json = cJSON_CreateObject();
-                    cJSON_AddStringToObject(json, "sinal", "登录成功");
-                    char *pass = cJSON_Print(json);
-                    add_file_size(ret, pass);
-                }
-                else
-                {
-                    cJSON *json = cJSON_CreateObject();
-                    cJSON_AddStringToObject(json, "sinal", "登录失败");
-                    char *pass = cJSON_Print(json);
-                    add_file_size(ret, pass);
-                }
-                */
-                /*******************************************************/
+                cJSON_Delete(node);
             }
         }
     }
-    close(sockfd);
     return 0;
 }

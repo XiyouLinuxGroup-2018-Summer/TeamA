@@ -11,6 +11,7 @@
 #include<mysql/mysql.h>
 #define PORT 6666
 #include"cJSON.h"
+#define CHAT_PRI 4
 pthread_mutex_t  mutex;
 typedef struct package{
     char name[20];
@@ -93,24 +94,6 @@ void  reg(int sockfd)                 /*注册用户信息*/
     char *pass = cJSON_PrintUnformatted(json);
     add_file_size(sockfd,pass);		
 }
-void login(int sockfd)
-{
-    int id,i;
-    char passwd [10];
-    cJSON * json = cJSON_CreateObject();
-    printf("please enter your id codes\n");
-    scanf("%d",&id);
-    cJSON_AddNumberToObject(json,"id",id);
-    printf("please enter the passwd\n");
-    while(getchar() != '\n')              //又是一个坑ｓｃａｎｆ为什么会有这么多的坑
-    continue;
-    for( i = 0;i< 8;i++)
-        passwd[i] = getch();
-    passwd[i] = '\0';
-    cJSON_AddStringToObject(json,"passwd",passwd);
-    char * pass = cJSON_PrintUnformatted(json);
-    add_file_size(sockfd,pass);
-}
 void back_passwd(int sockfd)
 {
     cJSON * json = cJSON_CreateObject();
@@ -160,6 +143,11 @@ void get_friend_list(int sockfd)
     cJSON_AddStringToObject(json,"signal","start");
     char * pass = cJSON_PrintUnformatted(json);
     add_file_size(sockfd,pass);
+    cJSON_Delete(json);
+    printf("no\n");
+    cJSON *node = analysis_package(sockfd);
+    printf("%s\n",cJSON_GetObjectItem(node,"signal")->valuestring);
+    cJSON_Delete(node);
 }
 void analysis_array(int sockfd)
 {
@@ -175,21 +163,95 @@ void analysis_array(int sockfd)
         }
     }
 }
-void * menu(void * arg)
+void chat_private(int sockfd,int id)
 {
-    int sockfd = (int)arg;
-    printf("\t\t\t*********1.login*************\t\t\t\n");
-    printf("\t\t\t*********2.register**********\t\t\t\n");
-    printf("\t\t\t*********3.back_passwd*******\t\t\t\n");
-    printf("\t\t\t*********4.delete usr********\t\t\t\n");
-    printf("\t\t\t*********5.add friends*******\t\t\t\n");
-    printf("\t\t\t*********6.get_friend_list*******\t\t\t\n");
-    printf("\t\t\t*********7.exit**************\t\t\t\n");
+    cJSON * json = cJSON_CreateObject();
+    char msg[1024];
+    int pid;
+   // get_friend_list(sockfd);
+    cJSON_AddNumberToObject(json,"signal",CHAT_PRI);
+    cJSON_AddNumberToObject(json,"send_fd",id);
+    printf("please enter the id that you want to chat\n");
+    scanf("%d",&pid);
+    cJSON_AddNumberToObject(json,"recv_fd",pid);
+    printf("please enter the msg\n");
+    scanf("%s",msg);
+    cJSON_AddStringToObject(json,"content",msg);
+    char * pass = cJSON_PrintUnformatted(json);
+    add_file_size(sockfd,pass);
+    cJSON_Delete(json);
+}
+void menu_select(int sockfd,int id)
+{
+    printf("\t\t\t*********1.delete usr********\t\t\t\n");
+    printf("\t\t\t*********2.add friends*******\t\t\t\n");
+    printf("\t\t\t*********3.get_friend_list***\t\t\t\n");
+    printf("\t\t\t*********4.chat private*******\t\t\t\n");
+    printf("\t\t\t*********5.main_menu*******\t\t\t\n");
     int choice;
     printf("\t\t\t请输入你的选择:");
     scanf("%d",&choice);
-    char *p = NULL;
-    pthread_mutex_lock(&mutex);
+     switch(choice)
+    {
+        case 1:
+             delete_usr(sockfd);
+             break;
+        case 2:
+             add_friends(sockfd);
+              break;
+        case 3:
+              get_friend_list(sockfd);
+              break;
+        case 4:
+              chat_private(sockfd,id);
+              break;
+        case 5:
+            // menu_main(sockfd);
+             break;
+        default:
+              printf("输入错误，请重新输入\n");
+              break;
+    }
+}
+void login(int sockfd)
+{
+    int id,i;
+    char passwd [10];
+    cJSON * json = cJSON_CreateObject();
+    printf("please enter your id codes\n");
+    scanf("%d",&id);
+    cJSON_AddNumberToObject(json,"id",id);
+    printf("please enter the passwd\n");
+    while(getchar() != '\n')              //又是一个坑ｓｃａｎｆ为什么会有这么多的坑
+    continue;
+    for( i = 0;i< 8;i++)
+        passwd[i] = getch();
+    passwd[i] = '\0';
+    cJSON_AddStringToObject(json,"passwd",passwd);
+    char * pass = cJSON_PrintUnformatted(json);
+    add_file_size(sockfd,pass);
+    cJSON_Delete(json);
+    int number;
+    int m = recv(sockfd,&number,16,0);
+    printf("%d\n",number);
+    char * temp = (char *)malloc(sizeof(char)*number);
+    recv(sockfd,temp,number,0);
+    printf("%s\n",temp);
+    if(strcmp(temp,"login successfully!!") == 0)
+    menu_select(sockfd,id);
+    return;
+}
+void  menu_main(int sockfd)
+{
+    //int sockfd = (int)arg;
+    printf("\t\t\t*********1.login*************\t\t\t\n");
+    printf("\t\t\t*********2.register**********\t\t\t\n");
+    printf("\t\t\t*********3.back_passwd*******\t\t\t\n");
+    printf("\t\t\t*********4.exit**************\t\t\t\n");
+    int choice;
+    printf("\t\t\t请输入你的选择:");
+    scanf("%d",&choice);
+    //pthread_mutex_lock(&mutex);
     switch(choice)
     {
         case 1:
@@ -197,21 +259,11 @@ void * menu(void * arg)
              break;
         case 2:
              reg(sockfd);
-             back_passwd(sockfd);
               break;
         case 3:
               back_passwd(sockfd);
               break;
         case 4:
-              delete_usr(sockfd);
-              break;
-        case 5:
-              add_friends(sockfd);
-              break;
-        case 6:
-              get_friend_list(sockfd);
-              break;
-        case 7:
              printf("退出中，请稍后......\n");
              sleep(4);
              exit(0);
@@ -221,7 +273,7 @@ void * menu(void * arg)
               exit(1);
               break;
     }
-    pthread_mutex_unlock(&mutex);
+  //  pthread_mutex_unlock(&mutex);
 }
 int main (int argc,char * argv[])
 {
@@ -242,11 +294,19 @@ int main (int argc,char * argv[])
         printf("连接失败\n");
         exit(1);
     }
-   /* while(1)
+   while(1)
     {
-        pthread_t thid1,thid2;
+         
+          menu_main(sockfd);
+         /* cJSON * node = analysis_package(sockfd);
+          printf("%s\n",cJSON_GetObjectItem(node,"content")->valuestring);
+          cJSON_Delete(node);*/
+      //   cJSON * node = analysis_package(sockfd);
+    //     printf("%s\n",cJSON_GetObjectItem(node,"signal"));
+      //   printf("%s\n",cJSON_GetObjectItem(node,"content")->valuestring);
+        /*pthread_t thid1,thid2;
         pthread_create(&thid1,NULL,menu,(void*)sockfd);
-        pthread_create(&thid2,NULL,)
-    }*/
+        pthread_create(&thid2,NULL,)*/
+    }
     return 0;
 }
