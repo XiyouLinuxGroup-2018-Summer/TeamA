@@ -17,7 +17,7 @@ void showMem(int ctlID)
             break;
         }
     }
-printf("%d\n", index);
+    printf("%d\n", index);
     for (int i = 0; i < MEM_MAX; i++)
     {
         if (grpList[index].memList[i].online)
@@ -47,6 +47,10 @@ void ctlGrp(int ctlID)
     if (ch == 'a')
     {
         showMem(ctlID);
+    }
+    if (ch == 'b')
+    {
+        sendMsg(ctlID);
     }
 }
 
@@ -85,14 +89,14 @@ void grpFun(void)
     }
 }
 
-void blockFrd(int ctlID)
+void ctlBlockFrd(int ctlID, int flag)
 {
     int len;
     char *sendPack;
     cJSON *root = cJSON_CreateObject();
     cJSON_AddNumberToObject(root, "sendID", myID);
     cJSON_AddNumberToObject(root, "ctlID", ctlID);
-    cJSON_AddNumberToObject(root, "type", BLOCK_FRD);
+    cJSON_AddNumberToObject(root, "type", flag);
     len = cJSON_ToPackage(root, &sendPack);
     send(clientSocket, sendPack, len, 0);
     free(sendPack);
@@ -109,10 +113,13 @@ void sendMsg(int ctlID)
     char str[256];
     char *sendPack;
     int len;
-    for (int i = 0; i < msgBox[ctlID].size(); i++)
+    if (ctlID > 0)
     {
-        cJSON *temp = msgBox[i].at(i);
-        printf("%d : %s\n", cJSON_GetObjectItem(temp, "sendID")->valueint, cJSON_GetObjectItem(temp, "msg")->valuestring);
+        for (int i = 0; i < msgBox[ctlID].size(); i++)
+        {
+            cJSON *temp = msgBox[i].at(i);
+            printf("%d : %s\n", cJSON_GetObjectItem(temp, "sendID")->valueint, cJSON_GetObjectItem(temp, "msg")->valuestring);
+        }
     }
     while (1)
     {
@@ -127,8 +134,7 @@ void sendMsg(int ctlID)
         cJSON_AddNumberToObject(data, "sendID", myID);
         cJSON_AddNumberToObject(data, "recvID", ctlID);
         cJSON_AddStringToObject(data, "msg", str);
-        cJSON_AddNumberToObject(data, "type", PRIVATE_MSG);
-        printf("**%s\n", cJSON_PrintUnformatted(data));
+        cJSON_AddNumberToObject(data, "type", ctlID > 0 ? PRIVATE_MSG : GROUP_MSG);
         len = cJSON_ToPackage(data, &sendPack);
         send(clientSocket, sendPack, len, 0);
         free(sendPack);
@@ -139,7 +145,8 @@ void ctlFrd(int ctlID)
 {
     printf("a. 发消息\n");
     printf("b. 屏蔽好友\n");
-    printf("c. 发文件\n");
+    printf("c. 解除屏蔽\n")
+    printf("d. 发文件\n");
     printf("x. 退出\n");
     char ch;
     do
@@ -153,7 +160,10 @@ void ctlFrd(int ctlID)
     }
     if (ch == 'b')
     {
-        blockFrd(ctlID);
+        ctlBlockFrd(ctlID, BLOCK_FRD);
+    }
+    if(ch == 'c') {
+        ctlBlockFrd(ctlID, UNBLOCK_FRD)
     }
 }
 
@@ -539,6 +549,8 @@ void start(char *ch_addr, char *ch_port)
 
     do
     {
+        fflush(stdin);
+        printf("getch\n");
         choice = getch();
         if (choice == 'a')
         {
@@ -565,7 +577,7 @@ void *recvFun(void *arg)
     while (1)
     {
         cJSON *root = recvPack();
-        printf("~~~~%s\n", cJSON_PrintUnformatted(root));
+        // printf("~~~~%s\n", cJSON_PrintUnformatted(root));
         analysis(root);
     }
 }

@@ -31,6 +31,9 @@ void *analysis(void *arg)
     if (type == BLOCK_FRD) {
         blockFrd(root);
     }
+    if(type == GROUP_MSG) {
+        sendToMem(root);
+    }
     // case ADD_GROUP : addGrp(sendID, recvID, msg); break;
     // case MSG_PRIVATE : sendMsg(sendID, recvID, msg); break;
     // case MSG_GROUP : sendMsg(sendID, recvID, msg); break;

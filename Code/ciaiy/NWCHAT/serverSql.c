@@ -1,5 +1,6 @@
 #include "server.h"
 
+/* 判断好友是否被阻塞 */
 int sql_is_blocked(int userID, int ctlID)
 {
     char sqlMsg[512];
@@ -18,11 +19,11 @@ int sql_is_blocked(int userID, int ctlID)
 }
 
 /* 阻塞某人 */
-void sql_block_frd(int userID, int ctlID)
+void sql_ctlblock_frd(int userID, int ctlID, int flag)
 {
     char sqlMsg[512];
 
-    sprintf(sqlMsg, "update frdList SET status = 1 where ID = %d and frdID = %d", userID, ctlID);
+    sprintf(sqlMsg, "update frdList SET status = %d where ID = %d and frdID = %d", flag == BLOCK_FRD ? 1 : 0, userID, ctlID);
     sql_run(&sql, 0, sqlMsg);
 }
 
@@ -45,6 +46,7 @@ int sql_get_ID_by_fd(int fd)
     return ID;
 }
 
+/* 得到在线好友  arr为ID数组 返回数目 */
 int sql_get_onlineFrd(int userID, int groupID, int **arr)
 {
     int onlineFrdNum = 0;
@@ -116,7 +118,7 @@ void sql_be_frd(int AID, int BID)
     sql_run(&sql, 0, sqlMsg);
 }
 
-/* 得到群成员列表 */
+/* 得到群成员列表 (cjson数组)*/
 cJSON *sql_get_memList(int grpID)
 {
     char sqlMsg[512];
@@ -144,7 +146,7 @@ cJSON *sql_get_memList(int grpID)
     return memArr;
 }
 
-/* 得到群列表 */
+/* 得到群列表 arr为json数组, 返回值为数目 */
 int sql_get_grpList(cJSON *arr, int userID)
 {
     char sqlMsg[512];

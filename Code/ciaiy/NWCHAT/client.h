@@ -35,6 +35,7 @@
 #define PRIVATE_MSG 5
 #define BLOCK_FRD 6
 #define UNBLOCK_FRD 7
+#define GROUP_MSG 8
 
 /* 客户端接受包的类型 */
 /*  一律用负数来标识  */
@@ -60,7 +61,8 @@ void initGrp(cJSON *root);
 void returnRequest(int recvID, int sign, int ret);
 void frdFun(void);
 void freshfrd(cJSON *root);
-
+void sendMsg(int ctlID);
+void ctlBlockFrd(int ctlID, int flag);
 /* 一些关于socket的变量 */
 int saLen;
 int clientSocket;
