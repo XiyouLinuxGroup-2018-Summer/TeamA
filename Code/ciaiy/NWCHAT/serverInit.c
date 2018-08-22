@@ -12,7 +12,8 @@ void start(int port)
     serr(&sql, "connect", __LINE__);
     mysql_real_query(&sql, "use chat;", strlen("use chat;"));
     serr(&sql, "use database", __LINE__);
-
+    mysql_real_query(&sql, "delete from onlineList;", strlen("delete from onlineList;"));
+    serr(&sql, "del onlineList", __LINE__);
     /* 初始化serverSocket */
     if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -69,9 +70,12 @@ void start(int port)
             if (recv(events[i].data.fd, &size, 4, 0) == 0)
             {
                 sprintf(sqlMsg, "delete from onlineList where fd = %d;", events[i].data.fd);
-                int userID = sql_get_ID_by_fd(events[i].data.fd);
                 sql_run(&sql, 0, sqlMsg);
-                sendFrdOnline(userID);
+                serr(&sql, "user off line", __LINE__);
+                int userID = sql_get_ID_by_fd(events[i].data.fd);
+                if(userID) {
+                    sendFrdOnline(userID);
+                }
                 ev.data.fd = events[i].data.fd;
                 ev.events = EPOLL_CTL_DEL;
                 epoll_ctl(epfd, EPOLL_CTL_DEL, events[i].data.fd, &ev);

@@ -1,11 +1,39 @@
 #include "server.h"
 
+/* 判断好友是否被阻塞 */
+int sql_is_blocked(int userID, int ctlID)
+{
+    char sqlMsg[512];
+    MYSQL_RES *sqlRes;
+    MYSQL_ROW sqlRow;
+    int num = 0;
+
+    sprintf(sqlMsg, "select count(status) from frdList where ID = %d and frdID = %d and status = 1;", userID, ctlID);
+    sqlRes = sql_run(&sql, 1, sqlMsg);
+    while ((sqlRow = mysql_fetch_row(sqlRes)))
+    {
+        num = atoi(sqlRow[0]);
+    }
+
+    return num;
+}
+
+/* 阻塞某人 */
+void sql_ctlblock_frd(int userID, int ctlID, int flag)
+{
+    char sqlMsg[512];
+
+    sprintf(sqlMsg, "update frdList SET status = %d where ID = %d and frdID = %d", flag == BLOCK_FRD ? 1 : 0, userID, ctlID);
+    sql_run(&sql, 0, sqlMsg);
+}
+
+/* 通过fd得到ID */
 int sql_get_ID_by_fd(int fd)
 {
     char sqlMsg[512];
     MYSQL_RES *sqlRes;
     MYSQL_ROW sqlRow;
-    int ID;
+    int ID = 0;
 
     sprintf(sqlMsg, "select ID from onlineList where fd = %d;", fd);
     sqlRes = sql_run(&sql, 1, sqlMsg);
@@ -18,32 +46,40 @@ int sql_get_ID_by_fd(int fd)
     return ID;
 }
 
+/* 得到在线好友  arr为ID数组 返回数目 */
 int sql_get_onlineFrd(int userID, int groupID, int **arr)
 {
     int onlineFrdNum = 0;
     char sqlMsg[512];
     MYSQL_RES *sqlRes;
     MYSQL_ROW sqlRow;
-    (*arr) = (int *)malloc(4 * FRD_MAX);
-    memset(*arr, 0, 4 * FRD_MAX);
+    (*arr) = (int *)malloc(4 * GRP_MAX * MEM_MAX);
+    if ((*arr) == NULL)
+    {
+        perror("malloc");
+        exit(1);
+    }
+    memset(*arr, 0, 4 * GRP_MAX * MEM_MAX);
 
     if (groupID)
     {
+        sprintf(sqlMsg, "select frdID from memList where groupID = %d", groupID);
     }
     else
     {
         sprintf(sqlMsg, "select frdID from frdList where ID = %d", userID);
-        sqlRes = sql_run(&sql, 1, sqlMsg);
-        while ((sqlRow = mysql_fetch_row(sqlRes)))
+    }
+    sqlRes = sql_run(&sql, 1, sqlMsg);
+    while ((sqlRow = mysql_fetch_row(sqlRes)))
+    {
+        int frdID = atoi(sqlRow[0]);
+        if (sql_is_online(frdID))
         {
-            int frdID = atoi(sqlRow[0]);
-            if (sql_is_online(frdID))
-            {
-                (*arr)[onlineFrdNum++] = frdID;
-                printf("好友%d在线\n", frdID);
-            }
+            (*arr)[onlineFrdNum++] = frdID;
+            printf("好友/群友 %d在线\n", frdID);
         }
     }
+    mysql_free_result(sqlRes);
 
     return onlineFrdNum;
 }
@@ -62,12 +98,12 @@ cJSON *sql_get_info(int userID, int groupID, int ctlID)
     name = sql_get_name(ctlID);
     status = sql_get_status(userID, groupID, ctlID);
     online = sql_is_online(ctlID) ? 1 : 0;
-
+    printf("查询完成\n");
     cJSON_AddNumberToObject(item, "ID", ctlID);
     cJSON_AddStringToObject(item, "name", name);
     cJSON_AddNumberToObject(item, "status", status);
     cJSON_AddNumberToObject(item, "online", online);
-
+    printf("返回json : %s\n", cJSON_PrintUnformatted(item));
     return item;
 }
 
@@ -82,7 +118,7 @@ void sql_be_frd(int AID, int BID)
     sql_run(&sql, 0, sqlMsg);
 }
 
-/* 得到群成员列表 */
+/* 得到群成员列表 (cjson数组)*/
 cJSON *sql_get_memList(int grpID)
 {
     char sqlMsg[512];
@@ -92,22 +128,25 @@ cJSON *sql_get_memList(int grpID)
     int ID;
     int online;
     char *name;
-    cJSON *memArr;
+    cJSON *memArr = cJSON_CreateArray();
 
-    sprintf(sqlMsg, "select frdID from memList where ID = %d;", grpID);
+    sprintf(sqlMsg, "select frdID from memList where groupID = %d;", grpID);
+    serr(&sql, "get memlist", __LINE__);
     sqlRes = sql_run(&sql, 1, sqlMsg);
     while ((sqlRow = mysql_fetch_row(sqlRes)))
     {
         cJSON *item;
+        printf("获得成员信息\n");
         item = sql_get_info(0, grpID, atoi(sqlRow[0]));
+        printf("得到群成员信息%s\n", cJSON_PrintUnformatted(item));
         cJSON_AddItemToArray(memArr, item);
     }
     mysql_free_result(sqlRes);
-
+    printf("获取所有群成员信息%s\n", cJSON_PrintUnformatted(memArr));
     return memArr;
 }
 
-/* 得到群列表 */
+/* 得到群列表 arr为json数组, 返回值为数目 */
 int sql_get_grpList(cJSON *arr, int userID)
 {
     char sqlMsg[512];
@@ -120,19 +159,25 @@ int sql_get_grpList(cJSON *arr, int userID)
     sqlRes = sql_run(&sql, 1, sqlMsg);
     while ((sqlRow = mysql_fetch_row(sqlRes)))
     {
-        cJSON *item;
+        printf("进入群中\n");
+        cJSON *item = cJSON_CreateObject();
         grpID = atoi(sqlRow[0]);
         char *name = sql_get_name(grpID);
+        printf("获得群成员信息中\n");
         cJSON *grpMem = sql_get_memList(grpID);
-
+        printf("grpMem : %s\n", cJSON_PrintUnformatted(grpMem));
         cJSON_AddNumberToObject(item, "groupID", grpID);
+        printf("1\n");
         cJSON_AddStringToObject(item, "name", name);
-        cJSON_AddItemToObject(item, "members", grpMem);
+        printf("2\n");
+        cJSON_AddItemToObject(item, "memlist", grpMem);
+        printf("3\n");
         cJSON_AddItemToArray(arr, item);
+        printf("整个群信息%s\n", cJSON_PrintUnformatted(item));
         grpNum++;
     }
     mysql_fetch_row(sqlRes);
-
+    printf("结束得到群列表, %s\n", cJSON_PrintUnformatted(arr));
     return grpNum;
 }
 
@@ -226,7 +271,7 @@ char *sql_get_name(int ID)
     }
     else
     {
-        sprintf(sqlMsg, "select name from groupID where ID = %d;", ID);
+        sprintf(sqlMsg, "select name from groupID where groupID = %d;", ID);
     }
 
     sqlRes = sql_run(&sql, 1, sqlMsg);
@@ -234,7 +279,8 @@ char *sql_get_name(int ID)
 
     while ((sqlRow = mysql_fetch_row(sqlRes)))
     {
-        name = (char *)malloc(strlen(sqlRow[0]));
+        name = (char *)malloc(strlen(sqlRow[0]) + 1);
+        name[strlen(sqlRow[0])] = 0;
         strcpy(name, sqlRow[0]);
     }
     mysql_fetch_row(sqlRes);
