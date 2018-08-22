@@ -24,9 +24,13 @@ void *analysis(void *arg)
     {
         retAddFrd(root);
     }
+    if (type == PRIVATE_MSG)
+    {
+        addSendQue(root);
+    }
     // case ADD_GROUP : addGrp(sendID, recvID, msg); break;
     // case MSG_PRIVATE : sendMsg(sendID, recvID, msg); break;
-    // case MSG_GROUP : sendMsg(sendID, recvID, msg); break; 
+    // case MSG_GROUP : sendMsg(sendID, recvID, msg); break;
     // case SEND_FILE : sendFile(sendID, recvID, fileName, fileIndex, flieSum, fileBlock); break;
     // case DEL_FRIEND : delFrd(sendID, ctlID); break;
     // case QUIT_GROUP : quitGrp(sendID, ctlID); break;
