@@ -33,6 +33,8 @@
 #define REQUEST_ADD_FRD 3
 #define RETURN_ADD_FRD 4
 #define PRIVATE_MSG 5
+#define BLOCK_FRD 6
+#define UNBLOCK_FRD 7
 
 /* 客户端接受包的类型 */
 /*  一律用负数来标识  */
@@ -41,6 +43,7 @@
 #define INITGRP -3
 #define FRESHFRD -4
 
+void start(char *ch_addr, char *ch_port);
 void init(int port);
 void err(char *msg, int len);
 void registerID();

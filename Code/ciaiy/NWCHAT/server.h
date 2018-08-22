@@ -32,6 +32,8 @@ void login(cJSON *root, int fd);
 void addFrd(cJSON *root);
 void retAddFrd(cJSON *root);
 void sendFrdOnline(int userID);
+void sendMsg(cJSON* root);
+void blockFrd(cJSON *root);
 
 /* 封装的数据库函数 */
 void serr(MYSQL *sql, const char *msg, int line);
@@ -52,6 +54,8 @@ void sql_be_frd(int AID, int BID);
 cJSON *sql_get_info(int userID, int groupID, int ctlID);
 int sql_get_onlineFrd(int userID, int groupID, int **arr);
 int sql_get_ID_by_fd(int fd);
+int sql_is_blocked(int userID, int ctlID);
+void sql_block_frd(int userID, int ctlID);
 
 #define UNBLOCK 0
 #define BLOCK 1
@@ -72,6 +76,8 @@ int sql_get_ID_by_fd(int fd);
 #define REQUEST_ADD_FRD 3
 #define RETURN_ADD_FRD 4
 #define PRIVATE_MSG 5
+#define BLOCK_FRD 6
+#define UNBLOCK_FRD 7
 
 /* 客户端接受包的类型 */
 /*  一律用负数来标识  */

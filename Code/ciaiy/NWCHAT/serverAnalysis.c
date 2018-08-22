@@ -26,7 +26,10 @@ void *analysis(void *arg)
     }
     if (type == PRIVATE_MSG)
     {
-        addSendQue(root);
+        sendMsg(root);
+    }
+    if (type == BLOCK_FRD) {
+        blockFrd(root);
     }
     // case ADD_GROUP : addGrp(sendID, recvID, msg); break;
     // case MSG_PRIVATE : sendMsg(sendID, recvID, msg); break;
