@@ -32,6 +32,7 @@
 #define LOGIN 2
 #define REQUEST_ADD_FRD 3
 #define RETURN_ADD_FRD 4
+#define PRIVATE_MSG 5
 
 /* 客户端接受包的类型 */
 /*  一律用负数来标识  */
@@ -45,7 +46,9 @@ void err(char *msg, int len);
 void registerID();
 int getch(void);
 int cJSON_ToPackage(cJSON *root, char **sendPack);
+void showNotice();
 void login();
+void addFrd(void);
 void analysis(cJSON *root);
 void initFrd(cJSON *root);
 void *recvFun(void *arg);

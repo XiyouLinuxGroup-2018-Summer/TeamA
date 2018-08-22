@@ -71,6 +71,7 @@ int sql_get_ID_by_fd(int fd);
 #define LOGIN 2
 #define REQUEST_ADD_FRD 3
 #define RETURN_ADD_FRD 4
+#define PRIVATE_MSG 5
 
 /* 客户端接受包的类型 */
 /*  一律用负数来标识  */
