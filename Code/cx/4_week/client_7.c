@@ -7,8 +7,10 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <termios.h>
+#include <sys/stat.h>
 #include <pthread.h>
 #include <mysql/mysql.h>
+#include <fcntl.h>
 #define PORT 6666
 #include "cJSON.h"
 #define CHAT_PRI 4
@@ -21,7 +23,10 @@
 #define AGREE 11
 #define DISAGREE 12
 #define FRIEND_REPLY 13
+#define NO_SPEAKING 14  //禁言　　　
 #define CHAT_GROUP 15
+#define SEND_FILE 16 //上传文件
+#define SPEAKING  17      //解除禁言
 char friend[30];
 pthread_mutex_t mutex;
 typedef struct package
@@ -68,11 +73,11 @@ int getch(void)
 /*发包函数，美滋滋*/
 void add_file_size(int fd, char *pass)
 {
-    printf("kkk%s\n",pass);
+    printf("kkk%s\n", pass);
     int m = strlen(pass) + 16;
     //char *temp_pack =(char*)malloc(sizeof(char)*m);
     char temp_pack[m]; //大小也是个坑
-    temp_pack[m-1] = '\0';
+    temp_pack[m - 1] = '\0';
     strcpy(temp_pack + 16, pass);
     *(int *)temp_pack = strlen(pass);
     printf("lll%s\n", pass);
@@ -213,7 +218,7 @@ void create_group(int sockfd, int id)
     char buf[30];
     cJSON_AddNumberToObject(json, "signal", CREAT_GROUP);
     printf("please enter the group id\n");
-    scanf("%d", gid);
+    scanf("%d", &gid);
     cJSON_AddNumberToObject(json, "gid", gid);
     printf("please enter the group name\n");
     scanf("%s", buf);
@@ -288,7 +293,7 @@ void chat_group(int sockfd, int uid)
     {
         cJSON *json = cJSON_CreateObject();
         cJSON_AddNumberToObject(json, "signal", CHAT_GROUP);
-        cJSON_AddNumberToObject(json,"uid",uid);
+        cJSON_AddNumberToObject(json, "uid", uid);
         if (count == 0)
         {
             printf("please enter the group order\n");
@@ -302,11 +307,68 @@ void chat_group(int sockfd, int uid)
         count++;
         char *pass = cJSON_PrintUnformatted(json);
         cJSON_Delete(json);
-        printf("chat_group:%s\n",pass);
+        printf("chat_group:%s\n", pass);
         add_file_size(sockfd, pass);
-        if (strcmp(buf,"bye") == 0)
+        if (strcmp(buf, "bye") == 0)
             break;
     }
+}
+/*如果是管理员则禁言某人，否则返回错误信息*/
+void group_set_no_speaking(int sockfd,int uid)
+{
+    cJSON * json = cJSON_CreateObject();
+    cJSON_AddNumberToObject(json,"signal",NO_SPEAKING);
+    printf("请输入要禁言人的id\n");
+    int id;
+    scanf("%d",&id);
+    cJSON_AddNumberToObject(json,"uid",id);
+    printf("请输入组账号\n");
+    int gid;
+    scanf("%d",&gid);
+    cJSON_AddNumberToObject(json,"gid",gid);
+    char * pass= cJSON_PrintUnformatted(json);
+    add_file_size(sockfd,pass);
+    cJSON_Delete(json);
+}
+/*解除禁言*/
+void group_cancle_no_speaking(int sockfd,int uid)
+{
+    cJSON * json = cJSON_CreateObject();
+    cJSON_AddNumberToObject(json,"signal",SPEAKING);
+    printf("请输入对方id\n");
+    int id;
+    scanf("%d",&id);
+    cJSON_AddNumberToObject(json,"uid",id);
+    printf("please enter the group id\n");
+    int gid;
+    scanf("%d",&gid);
+    cJSON_AddNumberToObject(json,"gid",gid);
+    char * pass= cJSON_PrintUnformatted(json);
+    add_file_size(sockfd,pass);
+    cJSON_Delete(json);
+}
+/*上传文件*/
+void send_file(int sockfd, int uid)
+{
+    int fd;
+    char filename[40];
+    cJSON *json = cJSON_CreateObject();
+    cJSON_AddNumberToObject(json, "signal", SEND_FILE);
+    cJSON_AddNumberToObject(json, "uid", uid);
+    printf("请输入文件路径\n");
+    scanf("%s", &filename);
+    if ((fd = open(filename, O_RDONLY, S_IRUSR | S_IWUSR)) == -1)
+    {
+        printf("文件打开失败\n");
+        return;
+    }
+    read(fd, filename, strlen(filename));
+    printf("%s", filename);
+    cJSON_AddStringToObject(json, "content", filename);
+    char *pass = cJSON_PrintUnformatted(json);
+    printf("%s\n", pass);
+    add_file_size(sockfd, pass);
+    cJSON_Delete(json);
 }
 /*二十一世纪得分包函数*/
 void *analysis_pack(void *arg)
@@ -322,13 +384,13 @@ void *analysis_pack(void *arg)
         if (m == 0)
             break;
         char *temp = (char *)malloc(sizeof(char) * number);
-        printf("111\n");
         int sf;
-        if ((sf = recv(sockfd, temp, number, 0)) == number)
+        if ((sf = recv(sockfd, temp, number, 0)) > 0)
         {
-            printf("%s,%d\n", temp,sf);
+            printf("%s,%d\n", temp, sf);
             cJSON *node = cJSON_Parse(temp);
             int item = cJSON_GetObjectItem(node, "signal")->valueint;
+            printf("lll%d\n",item);
             switch (item)
             {
             case CHAT_PRI:
@@ -346,8 +408,21 @@ void *analysis_pack(void *arg)
                     printf("对方已经同意添加你为好友\n");
                 break;
             case CHAT_GROUP:
-                printf("%s\n",cJSON_GetObjectItem(node,"content")->valuestring);
+                printf("%d发了一条群消息\n", cJSON_GetObjectItem(node, "uid")->valueint);
+                printf("%s\n", cJSON_GetObjectItem(node, "content")->valuestring);
                 break;
+            case SPEAKING:
+                flag = 0;
+                printf("您已被管理员解除禁言\n");
+                break;
+            case NO_SPEAKING:
+                 flag = 0;
+                 printf("您已被管理员禁言\n");
+                 break;
+            case CREAT_GROUP:
+                 flag = 0;
+                 printf("建群成功\n");
+                 break;
             default:
                 flag = 0;
                 printf("好戏即将开始\n");
@@ -372,8 +447,11 @@ void menu_select(int sockfd, int id)
         printf("\t\t\t*********3.reply friends*******\t\t\t\n");
         printf("\t\t\t*********4.get_friend_list***\t\t\t\n");
         printf("\t\t\t*********5.chat private*******\t\t\t\n");
-        printf("\t\t\t*********6.chat group*******\t\t\t\n");
-        printf("\t\t\t*********7.main_menu*******\t\t\t\n");
+        printf("\t\t\t*********6.create_group*******\t\t\t\n");
+        printf("\t\t\t*********7.chat group*******\t\t\t\n");
+        printf("\t\t\t*********8.set_no_speaking*******\t\t\t\n");
+        printf("\t\t\t*********9.cancle_no_speaking*******\t\t\t\n");
+        printf("\t\t\t*********10.main_menu*******\t\t\t\n");
         int choice;
         printf("\t\t\t请输入你的选择:");
         scanf("%d", &choice);
@@ -395,10 +473,19 @@ void menu_select(int sockfd, int id)
             printf("Nothing is here\n");
             break;
         case 5:
-           chat_private(sockfd, id);
+            chat_private(sockfd, id);
             break;
         case 6:
-            chat_group(sockfd,id);
+            create_group(sockfd,id);
+            break;
+        case 7:
+            chat_group(sockfd, id);        
+            break;
+        case 8:
+           group_set_no_speaking(sockfd,id);
+            break;
+        case 9:
+            group_cancle_no_speaking(sockfd,id);
             break;
         default:
             printf("输入错误，请重新输入\n");
