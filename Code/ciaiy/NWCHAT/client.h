@@ -43,6 +43,7 @@
 #define INITFRD -2
 #define INITGRP -3
 #define FRESHFRD -4
+#define FRESH_GRP_MEM -5
 
 void start(char *ch_addr, char *ch_port);
 void init(int port);
@@ -74,7 +75,7 @@ typedef struct frdNode
     int status;
     int online;
     char name[32];
-} frdNode;
+}frdNode;
 
 typedef struct grpNode
 {

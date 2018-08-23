@@ -24,17 +24,18 @@ void start(int port);
 void setNonblock(int serverSocket);
 void *analysis(void *data);
 void registerID(cJSON *root, int fd);
-void err(char *msg, int len);
+void err(char *msg, int len); 
 int cJSON_ToPackage(cJSON *root, char **sendPack);
 void addSendQue(cJSON *data);
 void sendInitInfo(int userID);
-void sendToMem(cJSON *root);
 void login(cJSON *root, int fd);
 void addFrd(cJSON *root);
 void retAddFrd(cJSON *root);
 void sendFrdOnline(int userID);
 void sendMsg(cJSON* root);
-void blockFrd(cJSON *root);
+void ctlBlockFrd(cJSON *root);
+void sendGrpOnline(int userID);
+int sendToMem(int userID, int grpID, int **arr);
 
 /* 封装的数据库函数 */
 void serr(MYSQL *sql, const char *msg, int line);
@@ -88,6 +89,8 @@ void sql_ctlblock_frd(int userID, int ctlID, int flag);
 #define INITFRD -2
 #define INITGRP -3
 #define FRESHFRD -4
+#define FRESH_GRP_MEM -5
+
 /* 一些使用数据库的变量 */
 MYSQL sql;
 MYSQL_ROW sqlRow;

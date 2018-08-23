@@ -167,11 +167,8 @@ int sql_get_grpList(cJSON *arr, int userID)
         cJSON *grpMem = sql_get_memList(grpID);
         printf("grpMem : %s\n", cJSON_PrintUnformatted(grpMem));
         cJSON_AddNumberToObject(item, "groupID", grpID);
-        printf("1\n");
         cJSON_AddStringToObject(item, "name", name);
-        printf("2\n");
         cJSON_AddItemToObject(item, "memlist", grpMem);
-        printf("3\n");
         cJSON_AddItemToArray(arr, item);
         printf("整个群信息%s\n", cJSON_PrintUnformatted(item));
         grpNum++;
@@ -190,7 +187,7 @@ int sql_get_status(int userID, int groupID, int ctlID)
     int status = UNBLOCK;
 
     if (groupID)
-    {
+    {  
         // 群好友状态
         sprintf(sqlMsg, "select status from memList where groupID = %d and frdID = %d;", groupID, ctlID);
         sqlRes = sql_run(&sql, 1, sqlMsg);
