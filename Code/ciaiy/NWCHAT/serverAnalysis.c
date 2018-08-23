@@ -24,15 +24,12 @@ void *analysis(void *arg)
     {
         retAddFrd(root);
     }
-    if (type == PRIVATE_MSG)
+    if (type == PRIVATE_MSG || type == GROUP_MSG)
     {
         sendMsg(root);
     }
-    if (type == BLOCK_FRD) {
-        blockFrd(root);
-    }
-    if(type == GROUP_MSG) {
-        sendToMem(root);
+    if (type == BLOCK_FRD || type == UNBLOCK_FRD) {
+        ctlBlockFrd(root);
     }
     // case ADD_GROUP : addGrp(sendID, recvID, msg); break;
     // case MSG_PRIVATE : sendMsg(sendID, recvID, msg); break;

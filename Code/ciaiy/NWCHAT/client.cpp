@@ -5,6 +5,36 @@ using namespace std;
 vector<cJSON *> noticeBox;
 map<int, vector<cJSON *>> msgBox;
 
+
+
+void freshMem(cJSON *root)
+{
+    int groupID = cJSON_GetObjectItem(root, "groupID")->valueint;
+    int status = cJSON_GetObjectItem(root, "status")->valueint;
+    int online = cJSON_GetObjectItem(root, "online")->valueint;
+    int ID = cJSON_GetObjectItem(root, "ID")->valueint;
+    char name[32];
+    strcpy(name, cJSON_GetObjectItem(root, "name")->valuestring);
+
+    for (int i = 0; i < GRP_MAX; i++)
+    {
+        if (grpList[i].groupID != groupID)
+        {
+            continue;
+        }
+        for (int j = 0; j < MEM_MAX; j++)
+        {
+            if (grpList[i].memList[j].userID == ID)
+            {
+                grpList[i].memList[j].status = status;
+                grpList[i].memList[j].online = online;
+                strcpy(grpList[i].memList[j].name, name);
+            }
+        }
+    }
+    cJSON_Delete(root);
+}
+
 void showMem(int ctlID)
 {
     int index;
@@ -145,7 +175,7 @@ void ctlFrd(int ctlID)
 {
     printf("a. 发消息\n");
     printf("b. 屏蔽好友\n");
-    printf("c. 解除屏蔽\n")
+    printf("c. 解除屏蔽\n");
     printf("d. 发文件\n");
     printf("x. 退出\n");
     char ch;
@@ -162,8 +192,9 @@ void ctlFrd(int ctlID)
     {
         ctlBlockFrd(ctlID, BLOCK_FRD);
     }
-    if(ch == 'c') {
-        ctlBlockFrd(ctlID, UNBLOCK_FRD)
+    if (ch == 'c')
+    {
+        ctlBlockFrd(ctlID, UNBLOCK_FRD);
     }
 }
 
@@ -420,9 +451,14 @@ void analysis(cJSON *root)
         freshfrd(root);
     }
 
-    if (type == PRIVATE_MSG)
+    if (type == PRIVATE_MSG||type == GROUP_MSG)
     {
         ctlMsg(root);
+    }
+    if (type == FRESH_GRP_MEM)
+    {
+        printf("刷新成员了~~\n");
+        freshMem(root);
     }
 }
 
@@ -462,7 +498,6 @@ void login()
         printf("密码正确\n");
         pthread_t recvThread;
         pthread_create(&recvThread, NULL, recvFun, NULL);
-        // system("clear");
 
         printf("正在登录\n");
         for (int i = 0; status != INITSUCCESS; i++)

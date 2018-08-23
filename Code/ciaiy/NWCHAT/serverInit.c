@@ -69,13 +69,18 @@ void start(int port)
             /* 用户下线 */
             if (recv(events[i].data.fd, &size, 4, 0) == 0)
             {
+                int userID = sql_get_ID_by_fd(events[i].data.fd);
+                printf("退出时的userID : %d\n", userID);
                 sprintf(sqlMsg, "delete from onlineList where fd = %d;", events[i].data.fd);
                 sql_run(&sql, 0, sqlMsg);
                 serr(&sql, "user off line", __LINE__);
-                int userID = sql_get_ID_by_fd(events[i].data.fd);
-                if(userID) {
+                if (userID)
+                {
+                    sendGrpOnline(userID);
+                    printf("退出时 执行了它\n");
                     sendFrdOnline(userID);
                 }
+
                 ev.data.fd = events[i].data.fd;
                 ev.events = EPOLL_CTL_DEL;
                 epoll_ctl(epfd, EPOLL_CTL_DEL, events[i].data.fd, &ev);
@@ -83,7 +88,7 @@ void start(int port)
             else
             {
 
-                /* 用户发包 */ 
+                /* 用户发包 */
                 char *data = (char *)malloc(size + 1);
                 data[size] = '\0';
                 printf("收到一个来自%d的包", events[i].data.fd);
