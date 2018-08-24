@@ -1,5 +1,73 @@
 #include "server.h"
 
+int sql_has_power(int userID, int groupID, int power) {
+    char sqlMsg[512];
+    MYSQL_RES *sqlRes;
+    MYSQL_ROW sqlRow;
+    int temp;
+    
+    sprintf(sqlMsg, "select status from memList where groupID = %d and frdID = %d;", groupID, userID);
+    sqlRes = sql_run(&sql, 1, sqlMsg);
+    while((sqlRow = mysql_fetch_row(sqlRes))) {
+        temp = atoi(sqlRow[0]);
+    }
+    if(temp >= power) {
+        printf("~~%d 的权限够了 ~~\n", userID);
+        return 1;
+    }else {
+        printf("~~%d  的权限不够~~\n", userID);
+        return 0;
+    }
+}
+
+int sql_add_user_to_grp(int userID, int groupID, int power)
+{
+    char sqlMsg[512];
+    MYSQL_RES *sqlRes;
+    MYSQL_ROW sqlRow;
+
+    sprintf(sqlMsg, "insert into memList (groupID, frdID, status) value (%d, %d, %d);", groupID, userID, power);
+    sql_run(&sql, 0, sqlMsg);
+    printf("结束 sql_adduserTogRP\n");
+}
+
+int sql_create_grp(int userID, char *name)
+{
+    char sqlMsg[512];
+    MYSQL_RES *sqlRes;
+    MYSQL_ROW sqlRow;
+    int groupID = -1;
+
+    sprintf(sqlMsg, "select min(groupID) from groupID");
+    sqlRes = sql_run(&sql, 1, sqlMsg);
+    while ((sqlRow = mysql_fetch_row(sqlRes)))
+    {
+        if (sqlRow[0] != NULL)
+        {
+            groupID = atoi(sqlRow[0]) - 1;
+        }
+        else
+        {
+            break;
+        }
+    }
+    mysql_free_result(sqlRes);
+    sprintf(sqlMsg, "insert into groupID (groupID, name)value(%d, '%s');", groupID, name);
+    sql_run(&sql, 0, sqlMsg);
+
+    return groupID;
+}
+
+void sql_quit_grp(int userID, int ctlID)
+{
+    char sqlMsg[512];
+    MYSQL_RES *sqlRes;
+    MYSQL_ROW sqlRow;
+
+    sprintf(sqlMsg, "delete from memList where frdID = %d and groupID = %d;", userID, ctlID);
+    sql_run(&sql, 0, sqlMsg);
+}
+
 /* 判断好友是否被阻塞 */
 int sql_is_blocked(int userID, int ctlID)
 {
@@ -72,6 +140,9 @@ int sql_get_onlineFrd(int userID, int groupID, int **arr)
     sqlRes = sql_run(&sql, 1, sqlMsg);
     while ((sqlRow = mysql_fetch_row(sqlRes)))
     {
+        if(sqlRow[0] == NULL) {
+            return 0;
+        }
         int frdID = atoi(sqlRow[0]);
         if (sql_is_online(frdID))
         {
@@ -187,7 +258,7 @@ int sql_get_status(int userID, int groupID, int ctlID)
     int status = UNBLOCK;
 
     if (groupID)
-    {  
+    {
         // 群好友状态
         sprintf(sqlMsg, "select status from memList where groupID = %d and frdID = %d;", groupID, ctlID);
         sqlRes = sql_run(&sql, 1, sqlMsg);
@@ -250,7 +321,7 @@ int sql_is_online(int ID)
         sendfd = atoi(sqlRow[0]);
     }
     mysql_free_result(sqlRes);
-
+    printf("结束sql_isonline\n");
     return sendfd;
 }
 
@@ -390,7 +461,7 @@ MYSQL_RES *sql_run(MYSQL *sql, int flag, const char *sqlMsg)
     MYSQL_RES *sqlRes;
 
     mysql_real_query(sql, sqlMsg, strlen(sqlMsg));
-    printf("** %s\n", sqlMsg);
+    printf("执行 %s\n", sqlMsg);
     serr(sql, "mysql qu...", __LINE__);
     if (flag)
     {

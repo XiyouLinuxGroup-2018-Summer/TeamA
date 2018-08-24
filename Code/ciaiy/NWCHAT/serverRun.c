@@ -2,6 +2,116 @@
 
 #include "server.h"
 
+void retAddGrp(cJSON *root)
+{
+    int *arr;
+    int ret = cJSON_GetObjectItem(root, "return")->valueint;
+    int recvID = cJSON_GetObjectItem(root, "recvID")->valueint;
+    int sendID = cJSON_GetObjectItem(root, "sendID")->valueint;
+    int groupID = cJSON_GetObjectItem(root, "groupID")->valueint;
+    if (ret)
+    {
+        sql_add_user_to_grp(recvID, groupID, 1);
+
+        cJSON *sendData = cJSON_CreateObject();
+        char *name = sql_get_name(groupID);
+        cJSON *grpMem = sql_get_memList(groupID);
+        cJSON_AddNumberToObject(sendData, "groupID", groupID);
+        cJSON_AddStringToObject(sendData, "name", name);
+        cJSON_AddItemToObject(sendData, "memlist", grpMem);
+        cJSON_AddNumberToObject(sendData, "recvID", recvID);
+        cJSON_AddNumberToObject(sendData, "type", ADD_GRP_SUCCESS);
+        addSendQue(sendData);
+        int num = sendToMem(recvID, groupID, &arr);
+        for (int i = 0; i < num; i++)
+        {
+            if (sql_is_online(arr[i]))
+            {
+                cJSON *data = sql_get_info(arr[i], groupID, sendID);
+                cJSON_AddNumberToObject(data, "type", FRESH_GRP_MEM);
+                cJSON_AddNumberToObject(data, "groupID", groupID);
+                cJSON_AddNumberToObject(data, "recvID", arr[i]);
+                addSendQue(data);
+            }
+        }
+    }
+    else
+    {
+        cJSON *sendData = cJSON_CreateObject();
+        cJSON_AddNumberToObject(sendData, "recvID", recvID);
+        cJSON_AddNumberToObject(sendData, "type", ADD_GRP_FAILD);
+        addSendQue(sendData);
+    }
+}
+
+void addGrp(cJSON *root)
+{
+    int sendID = cJSON_GetObjectItem(root, "sendID")->valueint;
+    int ctlID = cJSON_GetObjectItem(root, "ctlID")->valueint;
+    int *arr;
+
+    int num = sendToMem(ctlID, ctlID, &arr);
+    for (int i = 0; i < num; i++)
+    {
+        printf("%d是群员\n", arr[i]);
+        if (sql_has_power(arr[i], ctlID, ADMIN) && sql_is_online(arr[i]))
+        {
+            cJSON *data = cJSON_CreateObject();
+            cJSON_AddNumberToObject(data, "sendID", sendID);
+            cJSON_AddNumberToObject(data, "ctlID", ctlID);
+            cJSON_AddStringToObject(data, "name", sql_get_name(sendID));
+            cJSON_AddNumberToObject(data, "recvID", arr[i]);
+            cJSON_AddNumberToObject(data, "type", REQUEST_ADD_GRP);
+            addSendQue(data);
+        }
+    }
+}
+
+void createGrp(cJSON *root)
+{
+    int userID = cJSON_GetObjectItem(root, "sendID")->valueint;
+    char *name = cJSON_GetObjectItem(root, "name")->valuestring;
+    int grpID = sql_create_grp(userID, name);
+    sql_add_user_to_grp(userID, grpID, BOSS);
+    serr(&sql, "initNewGrp", __LINE__);
+    printf("发送initNewGrp\n");
+    cJSON *data = cJSON_CreateObject();
+    cJSON_AddNumberToObject(data, "type", INIT_GRP);
+    cJSON_AddNumberToObject(data, "grpID", grpID);
+    cJSON_AddStringToObject(data, "name", name);
+    cJSON_AddNumberToObject(data, "recvID", userID);
+    addSendQue(data);
+    printf("发送initMem\n");
+    data = sql_get_info(userID, grpID, userID);
+    cJSON_AddNumberToObject(data, "type", INIT_MEM);
+    cJSON_AddNumberToObject(data, "grpID", grpID);
+    cJSON_AddNumberToObject(data, "recvID", userID);
+    addSendQue(data);
+}
+
+void quitGrp(cJSON *root)
+{
+    printf("进入了quitGrp\n\n\n\n\n");
+    int *arr;
+    int groupID = cJSON_GetObjectItem(root, "ctlID")->valueint;
+    int userID = cJSON_GetObjectItem(root, "sendID")->valueint;
+    sql_quit_grp(userID, groupID);
+    int num = sendToMem(userID, groupID, &arr);
+    for (int j = 0; j < num; j++)
+    {
+        printf("给 %d 发消息\n", arr[j]);
+        cJSON *data = cJSON_CreateObject();
+        cJSON_AddNumberToObject(data, "type", C_QUIT_GRP);
+        cJSON_AddNumberToObject(data, "recvID", arr[j]);
+        cJSON_AddNumberToObject(data, "groupID", groupID);
+        cJSON_AddNumberToObject(data, "ctlID", userID);
+        printf("\n\n%s\n\n", cJSON_PrintUnformatted(data));
+        addSendQue(data);
+    }
+    free(arr);
+}
+
+/* 给群广播信息 */
 void sendGrpOnline(int userID)
 {
     cJSON *grpList = cJSON_CreateArray();
@@ -18,7 +128,6 @@ void sendGrpOnline(int userID)
             cJSON_AddNumberToObject(data, "type", FRESH_GRP_MEM);
             cJSON_AddNumberToObject(data, "recvID", arr[j]);
             cJSON_AddNumberToObject(data, "groupID", groupID);
-            printf("sendGrpOnline :%s\n", cJSON_PrintUnformatted(data));
             addSendQue(data);
         }
         free(arr);
@@ -42,11 +151,9 @@ int sendToMem(int userID, int grpID, int **arr)
         {
             break;
         }
-        printf("group : %d ID : %d\n", grpID, ID);
         (*arr)[index] = ID;
         item = item->next;
     }
-    printf("index = %d\n", index);
     return index;
 }
 
@@ -71,13 +178,16 @@ void sendMsg(cJSON *root)
         int grpID = cJSON_GetObjectItem(root, "recvID")->valueint;
         int *arr = (int *)malloc(4 * MEM_MAX);
         int num = sendToMem(userID, grpID, &arr);
-        for(int i = 0; i < num; i++) {
+        for (int i = 0; i < num; i++)
+        {
             cJSON *temp = cJSON_CreateObject();
             cJSON_AddNumberToObject(temp, "sendID", cJSON_GetObjectItem(root, "sendID")->valueint);
             cJSON_AddNumberToObject(temp, "recvID", arr[i]);
+            cJSON_AddNumberToObject(temp, "ctlID", grpID);
             cJSON_AddNumberToObject(temp, "type", cJSON_GetObjectItem(root, "type")->valueint);
             cJSON_AddStringToObject(temp, "msg", cJSON_GetObjectItem(root, "msg")->valuestring);
             addSendQue(temp);
+            printf("发送了\n\n");
         }
     }
 }
@@ -85,7 +195,6 @@ void sendMsg(cJSON *root)
 /* 阻塞某人 */
 void ctlBlockFrd(cJSON *root)
 {
-    printf("进入了blockFrd\n");
     int flag = cJSON_GetObjectItem(root, "type")->valueint;
     int userID = cJSON_GetObjectItem(root, "sendID")->valueint;
     int ctlID = cJSON_GetObjectItem(root, "ctlID")->valueint;
@@ -108,17 +217,17 @@ void retAddFrd(cJSON *root)
         cJSON_AddNumberToObject(root, "type", FRESHFRD);
         cJSON_AddNumberToObject(root, "recvID", sendID);
         addSendQue(root);
-        printf("%s\n", cJSON_PrintUnformatted(root));
         root = sql_get_info(recvID, 0, sendID);
-        cJSON_AddNumberToObject(root, "type", FRESHFRD);
+        cJSON_AddNumberToObject(root, "type", ADD_FRD_SUCCESS);
         cJSON_AddNumberToObject(root, "recvID", recvID);
         addSendQue(root);
-        printf("%s\n", cJSON_PrintUnformatted(root));
     }
     else
     {
-        //cJSON_Delete(root);
-        //root = cJSON_CreateObject();
+        cJSON *data = cJSON_CreateObject();
+        cJSON_AddNumberToObject(data, "recvID", recvID);
+        cJSON_AddNumberToObject(data, "type", ADD_FRD_FAILD);
+        addSendQue(data);
     }
 }
 
@@ -132,6 +241,7 @@ void addFrd(cJSON *root)
     cJSON_AddNumberToObject(root, "sendID", sendID);
     cJSON_AddNumberToObject(root, "recvID", recvID);
     cJSON_AddNumberToObject(root, "type", REQUEST_ADD_FRD);
+    cJSON_AddStringToObject(root, "name", sql_get_name(sendID));
     addSendQue(root);
 }
 
@@ -161,7 +271,9 @@ void login(cJSON *root, int fd)
         addSendQue(root);
         sendInitInfo(userID);
         sendFrdOnline(userID);
+        printf("\033[31ｍ 给在线好友广播\n\033[0m");
         sendGrpOnline(userID);
+        printf("\033[31ｍ 给在线群广播\n\033[0m");
     }
     else
     {
@@ -171,7 +283,6 @@ void login(cJSON *root, int fd)
         cJSON_AddNumberToObject(root, "recvID", userID);
         cJSON_AddNumberToObject(root, "sendID", 0);
         cJSON_AddNumberToObject(root, "fd", fd);
-        printf("准备发送\n");
         addSendQue(root);
         printf("发送成功\n");
     }
@@ -184,14 +295,12 @@ void sendFrdOnline(int userID)
     int *arr;
 
     num = sql_get_onlineFrd(userID, 0, &arr);
-    printf("进入了sendFrdOnline 当前用户在线%d\n", num);
     for (int i = 0; i < num; i++)
     {
         cJSON *root = sql_get_info(arr[i], 0, userID);
         cJSON_AddNumberToObject(root, "type", FRESHFRD);
         cJSON_AddNumberToObject(root, "recvID", arr[i]);
         cJSON_AddNumberToObject(root, "sendID", userID);
-        printf("当当当~%s\n", cJSON_PrintUnformatted(root));
         addSendQue(root);
     }
 }
@@ -237,7 +346,7 @@ void addSendQue(cJSON *data)
 {
     int sendfd;
     int recvID = cJSON_GetObjectItem((cJSON *)data, "recvID")->valueint;
-
+    printf("发送:%s\n", cJSON_PrintUnformatted(data));
     sendfd = sql_is_online(recvID);
 
     if (sendfd == 0)
@@ -258,7 +367,6 @@ void addSendQue(cJSON *data)
     int len = cJSON_ToPackage((cJSON *)data, &sendPack);
     send(sendfd, sendPack, len, 0);
     free(sendPack);
-    printf("end send\n");
 }
 
 /* 将json数据转换成字符串 */
@@ -282,7 +390,6 @@ int cJSON_ToPackage(cJSON *root, char **sendPack)
 /* 登录成功发送信息 */
 void sendInitInfo(int userID)
 {
-    printf("进入send Init Info函数\n");
     /* 发送好友信息 */
     cJSON *frdArr = cJSON_CreateArray();
     int frdNum = sql_get_frdList(frdArr, userID);
@@ -296,13 +403,10 @@ void sendInitInfo(int userID)
     /* 发送群信息 */
     cJSON *grpArr = cJSON_CreateArray();
     int grpNum = sql_get_grpList(grpArr, userID);
-    printf("fuck!!\n");
     cJSON *grpRoot = cJSON_CreateObject();
-    printf("发送信息zhong de %s\n", cJSON_PrintUnformatted(grpArr));
     cJSON_AddItemToObject(grpRoot, "grplist", grpArr);
     cJSON_AddNumberToObject(grpRoot, "grpNum", grpNum);
     cJSON_AddNumberToObject(grpRoot, "recvID", userID);
     cJSON_AddNumberToObject(grpRoot, "type", INITGRP);
-    printf("准备发送\n");
     addSendQue(grpRoot);
 }

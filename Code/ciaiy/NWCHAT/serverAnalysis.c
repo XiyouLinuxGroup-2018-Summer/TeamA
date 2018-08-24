@@ -7,7 +7,6 @@ void *analysis(void *arg)
     cJSON *root = ((analysisArg_t *)arg)->data;
     int fd = ((analysisArg_t *)arg)->fd;
     int type = cJSON_GetObjectItem(root, "type")->valueint;
-
     if (type == REGISTER)
     {
         registerID(root, fd);
@@ -28,8 +27,22 @@ void *analysis(void *arg)
     {
         sendMsg(root);
     }
-    if (type == BLOCK_FRD || type == UNBLOCK_FRD) {
+    if (type == BLOCK_FRD || type == UNBLOCK_FRD)
+    {
         ctlBlockFrd(root);
+    }
+    if (type == QUIT_GRP)
+    {   
+        quitGrp(root);
+    }
+    if(type == CREATE_GRP) {
+        createGrp(root);
+    }
+    if(type == REQUEST_ADD_GRP) {
+        addGrp(root);
+    }
+    if(type == RETURN_ADD_GRP) {
+        retAddGrp(root);
     }
     // case ADD_GROUP : addGrp(sendID, recvID, msg); break;
     // case MSG_PRIVATE : sendMsg(sendID, recvID, msg); break;

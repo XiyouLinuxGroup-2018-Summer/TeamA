@@ -2,18 +2,202 @@
 
 using namespace std;
 
+#define IN_MSG 1
+#define OTHER 2
+
 vector<cJSON *> noticeBox;
 map<int, vector<cJSON *>> msgBox;
 
+typedef struct STAT
+{
+    int now;
+    int ctlID;
+} STAT;
 
+STAT NOW;
+
+pthread_mutex_t grpListLock = PTHREAD_MUTEX_INITIALIZER;
+
+void freshGrp(cJSON *root)
+{
+    printf("进入了freshGrp\n");
+    int i;
+    for (i = 0; i < GRP_MAX; i++)
+    {
+        if (grpList[i].groupID == 0)
+        {
+            break;
+        }
+    }
+    strcpy(grpList[i].name, cJSON_GetObjectItem(root, "name")->valuestring);
+    printf("1\n");
+    grpList[i].groupID = cJSON_GetObjectItem(root, "groupID")->valueint;
+    printf("2\n");
+
+    cJSON *memlist = cJSON_GetObjectItem(root, "memlist");
+    printf("3\n");
+    
+    cJSON *item = cJSON_GetArrayItem(memlist, 0);
+    printf("4\n");
+    
+    for (int j = 0; j < cJSON_GetArraySize(memlist); j++)
+    {
+    printf("5\n");
+     
+        grpList[i].memList[j].userID = cJSON_GetObjectItem(item, "ID")->valueint;
+        grpList[i].memList[j].status = cJSON_GetObjectItem(item, "status")->valueint;
+        grpList[i].memList[j].online = cJSON_GetObjectItem(item, "online")->valueint;
+        strcpy(grpList[i].memList[j].name, cJSON_GetObjectItem(item, "name")->string);
+        item = item->next;
+    }
+}
+
+void addGrp(void)
+{
+    int grpID = 0;
+    int len;
+    char *sendPack;
+    printf("\033[2J");
+    printf("请输入要添加的群ID:");
+    scanf("%d", &grpID);
+    grpID = -grpID;
+    fflush(stdin);
+
+    cJSON *data = cJSON_CreateObject();
+    cJSON_AddNumberToObject(data, "type", REQUEST_ADD_GRP);
+    cJSON_AddNumberToObject(data, "ctlID", grpID);
+    cJSON_AddNumberToObject(data, "sendID", myID);
+    len = cJSON_ToPackage(data, &sendPack);
+    send(clientSocket, sendPack, len, 0);
+}
+
+void initMem(cJSON *root)
+{
+    pthread_mutex_lock(&grpListLock);
+    printf("initMem : JSON : %s\n", cJSON_PrintUnformatted(root));
+    int i;
+    for (i = 0; i < GRP_MAX; i++)
+    {
+        printf("正在查找: %s\n", grpList[i].name);
+        if (grpList[i].groupID == cJSON_GetObjectItem(root, "grpID")->valueint)
+        {
+            break;
+        }
+    }
+    printf("initMem : 找到的群%s\n", grpList[i].name);
+    grpList[i].memList[0].online = cJSON_GetObjectItem(root, "online")->valueint;
+    printf("1\n");
+    grpList[i].memList[0].status = cJSON_GetObjectItem(root, "status")->valueint;
+    printf("2\n");
+
+    grpList[i].memList[0].userID = cJSON_GetObjectItem(root, "ID")->valueint;
+    printf("3\n");
+
+    strcpy(grpList[i].memList[0].name, cJSON_GetObjectItem(root, "name")->valuestring);
+    pthread_mutex_unlock(&grpListLock);
+}
+
+void initNewGrp(cJSON *root)
+{
+    int i;
+    printf("initNewGrp : %s\n", cJSON_PrintUnformatted(root));
+    int grpID = cJSON_GetObjectItem(root, "grpID")->valueint;
+    pthread_mutex_lock(&grpListLock);
+    for (i = 0; i < GRP_MAX; i++)
+    {
+        if (grpList[i].groupID == 0)
+        {
+            break;
+        }
+    }
+    printf("插入位置 %d\n", i);
+    grpList[i].groupID = grpID;
+    strcpy(grpList[i].name, cJSON_GetObjectItem(root, "name")->valuestring);
+    vector<cJSON *> temp;
+    msgBox[grpID] = temp;
+    pthread_mutex_unlock(&grpListLock);
+}
+
+void createGrp(void)
+{
+    printf("\033[2J");
+    if (grpList[GRP_MAX - 1].groupID == 0)
+    {
+        int len;
+        char name[32];
+        char *sendPack;
+        printf("请输入群名称:");
+        scanf("%s", name);
+        cJSON *data = cJSON_CreateObject();
+        cJSON_AddStringToObject(data, "name", name);
+        cJSON_AddNumberToObject(data, "sendID", myID);
+        cJSON_AddNumberToObject(data, "type", CREATE_GRP);
+        len = cJSON_ToPackage(data, &sendPack);
+        send(clientSocket, sendPack, len, 0);
+    }
+    else
+    {
+        printf("群数量已满\n");
+        sleep(1);
+    }
+}
+
+void delMem(cJSON *root)
+{
+    printf("~~%s\n", cJSON_PrintUnformatted(root));
+    int ctlID = cJSON_GetObjectItem(root, "ctlID")->valueint;
+    int groupID = cJSON_GetObjectItem(root, "groupID")->valueint;
+    int i, j;
+    for (i = 0; i < GRP_MAX; i++)
+    {
+        if (grpList[i].groupID == groupID)
+        {
+            printf("已查到groupID = %d\n", groupID);
+            break;
+        }
+    }
+
+    for (j = 0; j < MEM_MAX; j++)
+    {
+        if (ctlID == grpList[i].memList[j].userID)
+        {
+            printf("已查到ID = %d\n", ctlID);
+            break;
+        }
+    }
+    printf("%s 被删\n", grpList[i].memList[j].name);
+    grpList[i].memList[j].userID = 0;
+}
+
+void quitGrp(int ctlID)
+{
+    cJSON *data = cJSON_CreateObject();
+    int len;
+    char *sendPack;
+    cJSON_AddNumberToObject(data, "sendID", myID);
+    cJSON_AddNumberToObject(data, "ctlID", ctlID);
+    cJSON_AddNumberToObject(data, "type", QUIT_GRP);
+    printf("%s\n", cJSON_PrintUnformatted(data));
+    len = cJSON_ToPackage(data, &sendPack);
+    int num = send(clientSocket, sendPack, len, 0);
+    printf("num = %d\n", num);
+    free(sendPack);
+}
 
 void freshMem(cJSON *root)
 {
     int groupID = cJSON_GetObjectItem(root, "groupID")->valueint;
+    printf("1\n");
     int status = cJSON_GetObjectItem(root, "status")->valueint;
+    printf("2\n");
     int online = cJSON_GetObjectItem(root, "online")->valueint;
+    printf("3\n");
+    
     int ID = cJSON_GetObjectItem(root, "ID")->valueint;
+    printf("4\n");
+    
     char name[32];
+    printf("lallalla\n");
     strcpy(name, cJSON_GetObjectItem(root, "name")->valuestring);
 
     for (int i = 0; i < GRP_MAX; i++)
@@ -50,6 +234,10 @@ void showMem(int ctlID)
     printf("%d\n", index);
     for (int i = 0; i < MEM_MAX; i++)
     {
+        if (grpList[index].memList[i].userID == 0)
+        {
+            continue;
+        }
         if (grpList[index].memList[i].online)
         {
             printf("\33[35m%10s [%7d]\033[0m\n", grpList[index].memList[i].name, grpList[index].memList[i].userID);
@@ -63,25 +251,40 @@ void showMem(int ctlID)
 
 void ctlGrp(int ctlID)
 {
-    printf("a.查看群成员\n");
-    printf("b.群聊\n");
-    printf("c.屏蔽成员\n");
-    printf("d.退出群聊\n");
-    printf("e.返回\n");
-
     int ch;
     do
     {
+        printf("\033[2J");
+        printf("a.查看群成员\n");
+        printf("b.群聊\n");
+        printf("c.管理成员\n");
+        printf("d.退出群聊\n");
+        printf("e.返回\n");
+
         ch = getch();
+
+        if (ch == 'a')
+        {
+            showMem(ctlID);
+            getch();
+        }
+        if (ch == 'b')
+        {
+            sendMsg(ctlID);
+        }
+        if (ch == 'c')
+        {
+            printf("正在完成中\n");
+        }
+        if (ch == 'd')
+        {
+            quitGrp(ctlID);
+        }
+        if (ch == 'e')
+        {
+            return;
+        }
     } while (ch != 'a' && ch != 'b' && ch != 'c' && ch != 'd' && ch != 'e');
-    if (ch == 'a')
-    {
-        showMem(ctlID);
-    }
-    if (ch == 'b')
-    {
-        sendMsg(ctlID);
-    }
 }
 
 int hasGrp(int ctlID)
@@ -99,14 +302,20 @@ int hasGrp(int ctlID)
 void grpFun(void)
 {
     int ctlID;
-    for (int i = 0; grpList[i].groupID != 0; i++)
+    while (1)
     {
+
+        printf("\033[2J");
         for (int i = 0; grpList[i].groupID != 0; i++)
         {
             printf("%s [%d]\n", grpList[i].name, -grpList[i].groupID);
         }
-        printf("请选择要操作的群ID:");
+        printf("请选择要操作的群ID(0 退出):");
         scanf("%d", &ctlID);
+        if (ctlID == 0)
+        {
+            return;
+        }
         ctlID = -ctlID;
         if (hasGrp(ctlID))
         {
@@ -121,6 +330,14 @@ void grpFun(void)
 
 void ctlBlockFrd(int ctlID, int flag)
 {
+    for (int i = 0; i < MEM_MAX; i++)
+    {
+        if (frdList[i].userID == ctlID)
+        {
+            frdList[i].status = flag == BLOCK_FRD ? 1 : 0;
+            break;
+        }
+    }
     int len;
     char *sendPack;
     cJSON *root = cJSON_CreateObject();
@@ -134,8 +351,25 @@ void ctlBlockFrd(int ctlID, int flag)
 
 void ctlMsg(cJSON *data)
 {
-    // 还有好多事情没做
-    printf("\n\33[34m %d : %s \033[0m\n", cJSON_GetObjectItem(data, "sendID")->valueint, cJSON_GetObjectItem(data, "msg")->valuestring);
+    int type = cJSON_GetObjectItem(data, "type")->valueint;
+    int ID;
+    int sendID = cJSON_GetObjectItem(data, "sendID")->valueint;
+
+    if (type == GROUP_MSG)
+    {
+        ID = cJSON_GetObjectItem(data, "ctlID")->valueint;
+        msgBox[ID].push_back(data);
+    }
+    else
+    {
+        ID = cJSON_GetObjectItem(data, "sendID")->valueint;
+        msgBox[ID].push_back(data);
+    }
+
+    if (NOW.now == IN_MSG && NOW.ctlID == ID && sendID != myID)
+    {
+        printf("\33[34m%d :%s \n\033[0m", cJSON_GetObjectItem(data, "sendID")->valueint, cJSON_GetObjectItem(data, "msg")->valuestring);
+    }
 }
 
 void sendMsg(int ctlID)
@@ -143,13 +377,16 @@ void sendMsg(int ctlID)
     char str[256];
     char *sendPack;
     int len;
-    if (ctlID > 0)
+
+    NOW.now = IN_MSG;
+    NOW.ctlID = ctlID;
+    printf("当前聊天对象ID : %d\n", ctlID);
+    int num = msgBox[ctlID].size();
+    for (int i = 0; i < num; i++)
     {
-        for (int i = 0; i < msgBox[ctlID].size(); i++)
-        {
-            cJSON *temp = msgBox[i].at(i);
-            printf("%d : %s\n", cJSON_GetObjectItem(temp, "sendID")->valueint, cJSON_GetObjectItem(temp, "msg")->valuestring);
-        }
+        int sendID = cJSON_GetObjectItem(msgBox[ctlID].at(i), "sendID")->valueint;
+        char *msg = cJSON_GetObjectItem(msgBox[ctlID].at(i), "msg")->valuestring;
+        printf("%d :%s\n", sendID, msg);
     }
     while (1)
     {
@@ -158,9 +395,14 @@ void sendMsg(int ctlID)
         str[strlen(str) - 1] = 0;
         if (strcmp(str, "bye") == 0)
         {
+            NOW.now = OTHER;
             break;
         }
         cJSON *data = cJSON_CreateObject();
+        cJSON *temp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(temp, "sendID", myID);
+        cJSON_AddStringToObject(temp, "msg", str);
+        msgBox[ctlID].push_back(temp);
         cJSON_AddNumberToObject(data, "sendID", myID);
         cJSON_AddNumberToObject(data, "recvID", ctlID);
         cJSON_AddStringToObject(data, "msg", str);
@@ -213,8 +455,13 @@ void frdFun(void)
             printf("%7s [%7d] %8s\n", frdList[i].name, frdList[i].userID, frdList[i].status ? "<blocked>" : "");
         }
     }
-    printf("请选择要操作的好友ID:");
+    printf("请选择要操作的好友ID(0退出):");
     scanf("%d", &ctlID);
+    fflush(stdin);
+    if (ctlID == 0)
+    {
+        return;
+    }
     if (msgBox.count(ctlID))
     {
         ctlFrd(ctlID);
@@ -255,29 +502,20 @@ void freshfrd(cJSON *root)
 void desktop(void)
 {
     int ch;
-    int freshflag = 0;
     while (1)
     {
-        system("clear");
+        printf("\033[2J");
         printf("a. 好友列表\n");
         printf("b. 群列表\n");
-        printf("c. 添加好友\n");
-        printf("d. 找回密码\n");
-        printf("e. 新通知 (%d)\n", noticeBox.size());
-        printf("ESC 退出\n");
-        // usleep(5000);
-        // pthread_mutex_lock(&freshLock);
-        // freshflag = needFresh;
-        // needFresh = 0;
-        // pthread_mutex_unlock(&freshLock);
-        // if(freshflag) {
-        // printf("有新消息\n");
-        // sleep(1);
-        //     freshflag = 0;
-        //     continue;
-        // }
+        printf("c. 创建群\n");
+        printf("d. 添加好友\n");
+        printf("e. 添加群\n");
+        printf("f. 新通知 (%d)\n", noticeBox.size());
+        printf("x. 退出\n");
 
+        printf("运行getch\n");
         ch = getch();
+        printf("getch 得到的是 : '%c'\n", ch);
         switch (ch)
         {
         case 'a':
@@ -285,27 +523,38 @@ void desktop(void)
             break;
         case 'b':
             grpFun();
+            printf("~~~\n");
             break;
         case 'c':
-            addFrd();
+            createGrp();
             break;
         case 'd':
-            //resetPasswd();
+            addFrd();
             break;
         case 'e':
+            addGrp();
+            break;
+        case 'f':
+            pthread_mutex_lock(&noticeLock);
             showNotice();
-        default:
-            ch = getch();
+            pthread_mutex_unlock(&noticeLock);
+            break;
+        case 'x':
+            exit(0);
         }
     }
 }
 
 /* 返回状态 */
-void returnRequest(int recvID, int sign, int ret)
+void returnRequest(int groupID, int recvID, int sign, int ret)
 {
     cJSON *root = cJSON_CreateObject();
     char *sendPack;
     int len;
+    if (groupID)
+    {
+        cJSON_AddNumberToObject(root, "groupID", groupID);
+    }
     cJSON_AddNumberToObject(root, "type", sign);
     cJSON_AddNumberToObject(root, "recvID", recvID);
     cJSON_AddNumberToObject(root, "return", ret);
@@ -316,39 +565,70 @@ void returnRequest(int recvID, int sign, int ret)
     printf("结束发送\n");
 }
 
-/* 添加好友功能 */
-void ctlAddFrd(cJSON *root)
+void ctlAddGrp(cJSON *root)
 {
     int ch;
+    char *name = cJSON_GetObjectItem(root, "name")->valuestring;
     int recvID = cJSON_GetObjectItem(root, "sendID")->valueint;
-    printf("添加好友:\n%d 请求加你为好友[Y/N]\n", recvID);
+    int ctlID = cJSON_GetObjectItem(root, "ctlID")->valueint;
+    printf("加群申请:\n%s(%d)请求加群 %d [Y/N]\n", name, recvID, ctlID);
     do
     {
         ch = getch();
     } while (ch != 'Y' && ch != 'N');
-    returnRequest(recvID, RETURN_ADD_FRD, (ch == 'Y') ? 1 : 0);
+    returnRequest(ctlID, recvID, RETURN_ADD_GRP, (ch == 'Y') ? 1 : 0);
+}
+
+/* 添加好友功能 */
+void ctlAddFrd(cJSON *root)
+{
+    int ch;
+    char *name = cJSON_GetObjectItem(root, "name")->valuestring;
+    int recvID = cJSON_GetObjectItem(root, "sendID")->valueint;
+    printf("添加好友:\n%s(%d)请求加你为好友[Y/N]\n", name, recvID);
+    do
+    {
+        ch = getch();
+    } while (ch != 'Y' && ch != 'N');
+    returnRequest(0, recvID, RETURN_ADD_FRD, (ch == 'Y') ? 1 : 0);
 }
 
 /* 显示通知 */
 void showNotice()
 {
-    system("clear");
-
+    printf("\033[2J");
     if (noticeBox.size() == 0)
     {
         printf("这里好像什么都没有\n");
         sleep(1);
         return;
     }
-
     for (int i = 0; i < noticeBox.size(); i++)
     {
+        printf("size %d, when i = %d\n", noticeBox.size(), i);
+        printf("%s\n", cJSON_PrintUnformatted(noticeBox.at(i)));
         if (cJSON_GetObjectItem(noticeBox.at(i), "type")->valueint == REQUEST_ADD_FRD)
         {
             ctlAddFrd(noticeBox.at(i));
-            noticeBox.erase(noticeBox.begin() + i, noticeBox.begin() + i + 1); // 删除该数据
+            noticeBox.erase(noticeBox.begin() + i); // 删除该数据
+        }
+        else if (cJSON_GetObjectItem(noticeBox.at(i), "type")->valueint == REQUEST_ADD_GRP)
+        {
+            ctlAddGrp(noticeBox.at(i));
+            noticeBox.erase(noticeBox.begin() + i);
+        }
+        else if (cJSON_GetObjectItem(noticeBox.at(i), "type")->valueint == ADD_FRD_SUCCESS)
+        {
+            freshfrd(noticeBox.at(i));
+            noticeBox.erase(noticeBox.begin() + i);
+        }
+        else if (cJSON_GetObjectItem(noticeBox.at(i), "type")->valueint == ADD_GRP_SUCCESS)
+        {
+            freshGrp(noticeBox.at(i));
+            noticeBox.erase(noticeBox.begin() + i);
         }
     }
+    printf("lllllllll\n");
 }
 
 /* 添加好友函数 */
@@ -359,7 +639,7 @@ void addFrd(void)
     cJSON *root = cJSON_CreateObject();
     char *sendPack;
 
-    system("clear");
+    //# system("clear"); \033[2J
     printf("请输入要加好友ID:");
     scanf("%d", &ctlID);
 
@@ -403,7 +683,7 @@ void initGrp(cJSON *root)
         printf("继续for\n");
     }
     printf("初始化结束\n");
-    status = INITSUCCESS;
+    NOW.now = INITSUCCESS;
 }
 
 /* 初始化好友信息 */
@@ -433,7 +713,7 @@ void initFrd(cJSON *root)
 void analysis(cJSON *root)
 {
     int type = cJSON_GetObjectItem(root, "type")->valueint;
-
+    printf("收到了 %s\n", cJSON_PrintUnformatted(root));
     if (type == INITFRD)
     {
         initFrd(root);
@@ -442,23 +722,48 @@ void analysis(cJSON *root)
     {
         initGrp(root);
     }
-    if (type == REQUEST_ADD_FRD)
+    if (type == REQUEST_ADD_FRD || type == REQUEST_ADD_GRP)
     {
+        system("play notice.mp3 2>/dev/null &");
+        pthread_mutex_lock(&noticeLock);
         noticeBox.push_back(root);
+        pthread_mutex_unlock(&noticeLock);
     }
     if (type == FRESHFRD)
     {
+        system("play online.mp3 2>/dev/null &");
         freshfrd(root);
     }
 
-    if (type == PRIVATE_MSG||type == GROUP_MSG)
+    if (type == PRIVATE_MSG || type == GROUP_MSG)
     {
+        system("play msg.mp3 2>/dev/null &");
         ctlMsg(root);
     }
     if (type == FRESH_GRP_MEM)
     {
-        printf("刷新成员了~~\n");
+        system("play online.mp3 2>/dev/null &");
         freshMem(root);
+    }
+    if (type == C_QUIT_GRP)
+    {
+        delMem(root);
+    }
+    if (type == INIT_MEM)
+    {
+        printf("analysis : %s\n", cJSON_PrintUnformatted(root));
+        initMem(root);
+    }
+    if (type == INIT_GRP)
+    {
+        initNewGrp(root);
+    } 
+    if (type == ADD_GRP_FAILD || type == ADD_GRP_SUCCESS || type == ADD_GRP_SUCCESS || type == ADD_FRD_SUCCESS)
+    {
+        system("play notice.mp3 2>/dev/null &");        
+        pthread_mutex_lock(&noticeLock);
+        noticeBox.push_back(root);
+        pthread_mutex_unlock(&noticeLock);
     }
 }
 
@@ -500,7 +805,7 @@ void login()
         pthread_create(&recvThread, NULL, recvFun, NULL);
 
         printf("正在登录\n");
-        for (int i = 0; status != INITSUCCESS; i++)
+        for (int i = 0; NOW.now != INITSUCCESS; i++)
         {
             usleep(50000);
         }
@@ -678,7 +983,6 @@ void err(char *msg, int len)
 
 int main(int argc, char *argv[])
 {
-
     start(argv[1], argv[2]);
 
     return 0;

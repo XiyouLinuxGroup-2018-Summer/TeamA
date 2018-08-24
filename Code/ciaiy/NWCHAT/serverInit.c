@@ -77,7 +77,6 @@ void start(int port)
                 if (userID)
                 {
                     sendGrpOnline(userID);
-                    printf("退出时 执行了它\n");
                     sendFrdOnline(userID);
                 }
 

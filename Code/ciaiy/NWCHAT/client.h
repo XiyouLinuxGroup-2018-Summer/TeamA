@@ -36,6 +36,10 @@
 #define BLOCK_FRD 6
 #define UNBLOCK_FRD 7
 #define GROUP_MSG 8
+#define QUIT_GRP 9
+#define CREATE_GRP 10
+#define REQUEST_ADD_GRP 11
+#define RETURN_ADD_GRP 12
 
 /* 客户端接受包的类型 */
 /*  一律用负数来标识  */
@@ -44,6 +48,13 @@
 #define INITGRP -3
 #define FRESHFRD -4
 #define FRESH_GRP_MEM -5
+#define C_QUIT_GRP -6
+#define INIT_GRP -7
+#define INIT_MEM -8
+#define ADD_GRP_SUCCESS -9
+#define ADD_GRP_FAILD -10
+#define ADD_FRD_FAILD -11
+#define ADD_FRD_SUCCESS -12
 
 void start(char *ch_addr, char *ch_port);
 void init(int port);
@@ -64,6 +75,9 @@ void frdFun(void);
 void freshfrd(cJSON *root);
 void sendMsg(int ctlID);
 void ctlBlockFrd(int ctlID, int flag);
+void quitGrp(int ctlID);
+void ctlAddGrp(cJSON *root);
+
 /* 一些关于socket的变量 */
 int saLen;
 int clientSocket;
@@ -75,7 +89,7 @@ typedef struct frdNode
     int status;
     int online;
     char name[32];
-}frdNode;
+} frdNode;
 
 typedef struct grpNode
 {
@@ -84,13 +98,11 @@ typedef struct grpNode
     frdNode memList[MEM_MAX];
 } grpNode;
 
-pthread_rwlock_t statusLock;
-pthread_rwlock_t msgBoxLock;
-int status = INITING;
+pthread_mutex_t noticeLock = PTHREAD_MUTEX_INITIALIZER;
 
 /* 一些存放客户端信息 */
-frdNode frdList[FRD_MAX];
-grpNode grpList[GRP_MAX];
+frdNode frdList[FRD_MAX] = {0};
+grpNode grpList[GRP_MAX] = {0};
 
 /* 存放自己的信息 */
 int myID;
