@@ -33,9 +33,6 @@
 #define QUIT_GROUP 22    //删除群成员
 #define QUIT_GROUP_T 23  //　退群
 #define ADD_GROUP   24    //加群
-#define SEND_BACK   25   //文件回馈
-#define BUFFER_SIZE 1024
-#define FILE_NAME_MAX_SIZE 512
 char friend[30];
 char pmsg[100][100];   //临时储存私聊记录
 char gmsg[100][100];    //临时储存群聊记录
@@ -59,173 +56,6 @@ typedef struct friend_info
     int pid;
     int status;
 } FRIEND_INFO;
-/*发包函数，美滋滋*/
-void add_file_size(int fd, char *pass)
-{
-    int m = strlen(pass) + 16;
-    //char *temp_pack =(char*)malloc(sizeof(char)*m);
-    char temp_pack[m + 1]; //大小也是个坑
-    temp_pack[m] = 0;
-    strcpy(temp_pack + 16, pass);
-    *(int *)temp_pack = strlen(pass);
-    printf("lll%s\n", pass);
-    send(fd, &temp_pack, m, 0);
-    return;
-}
-/*编码函数*/
-const char *base64char = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-const char padding_char = '=';
-int base64_encode(const unsigned char *sourcedata, char *base64, int datalength)
-{
-	int i = 0, j = 0;
-	unsigned char trans_index = 0;
-	for (; i < datalength; i += 3)
-	{
-		trans_index = ((sourcedata[i] >> 2) & 0x3f);
-		base64[j++] = base64char[(int)trans_index];
-		trans_index = ((sourcedata[i] << 4) & 0x30);
-		if (i + 1 < datalength)
-		{
-			trans_index |= ((sourcedata[i + 1] >> 4) & 0x0f);
-			base64[j++] = base64char[(int)trans_index];
-		}
-		else
-		{
-			base64[j++] = base64char[(int)trans_index];
-
-			base64[j++] = padding_char;
-
-			base64[j++] = padding_char;
-
-			break; 
-		}
-		trans_index = ((sourcedata[i + 1] << 2) & 0x3c);
-		if (i + 2 < datalength)
-		{ 
-			trans_index |= ((sourcedata[i + 2] >> 6) & 0x03);
-			base64[j++] = base64char[(int)trans_index];
-
-			trans_index = sourcedata[i + 2] & 0x3f;
-			base64[j++] = base64char[(int)trans_index];
-		}
-		else
-		{
-			base64[j++] = base64char[(int)trans_index];
-
-			base64[j++] = padding_char;
-
-			break;
-		}
-	}
-	base64[j] = '\0';
-	return 0;
-}
-/*解码*/
-int num_strchr(const char *str, char c)
-{
-	const char *pindex = strchr(str, c);
-	if (NULL == pindex)
-	{
-		return -1;
-	}
-	return pindex - str;
-}
-/* 解码*/
-int base64_decode(const char *base64, unsigned char *dedata)
-{
-	int i = 0, j = 0;
-	int trans[4] = {0, 0, 0, 0};
-	for (; base64[i] != '\0'; i += 4)
-	{
-		trans[0] = num_strchr(base64char, base64[i]);
-		trans[1] = num_strchr(base64char, base64[i + 1]);
-		dedata[j++] = ((trans[0] << 2) & 0xfc) | ((trans[1] >> 4) & 0x03);
-
-		if (base64[i + 2] == '=')
-		{
-			continue;
-		}
-		else
-		{
-			trans[2] = num_strchr(base64char, base64[i + 2]);
-		}
-		dedata[j++] = ((trans[1] << 4) & 0xf0) | ((trans[2] >> 2) & 0x0f);
-
-		if (base64[i + 3] == '=')
-		{
-			continue;
-		}
-		else
-		{
-			trans[3] = num_strchr(base64char, base64[i + 3]);
-		}
-		dedata[j++] = ((trans[2] << 6) & 0xc0) | (trans[3] & 0x3f);
-	}
-	dedata[j] = '\0';
-	return 0;
-}
-/*获取文件大小*/
-int get_file_size(char *filename)
-{
-	struct stat statbuf;
-	stat(filename, &statbuf);
-	int size = statbuf.st_size;
-	return size;
-}
-/*上传文件*/
-void send_file(int sockfd,int uid)
-{
-	int fid;
-	printf("请输入好友的id:");
-	scanf("%d", &fid);
-	while ('\n' != (getchar()));
-	char filename[80];
-	printf("请输入传输的文件名称\n");
-	scanf("%s",filename);
-    printf("%s",filename);
-	int len = strlen(filename);
-	//filename[len - 1] = '\0';
-	int size = get_file_size(filename);
-    printf("%d",size);
-    printf("hhhh\n");
-	int fp;
-	if ((fp = open(filename,O_RDWR)) < 0)
-	{
-		printf("文件打开失败\n");
-	}
-    printf("no\n");
-	char *buf = (char *)malloc(sizeof(char)*size);
-	int ret = 0;
-	int num = size;
-	while (num != 0)
-	{ 
-		if((ret = read(fp, buf + ret,num)) < 1);
-        printf("%d",ret);
-		num -= ret;
-	}
-    printf("go\n");
-	buf[size] = '\0';
-	close(fp);
-    printf("god\n");
-	char *str = (char *)malloc(sizeof(char)*size* 2);  //保存编码后的文件内容
-	//base64编码
-	base64_encode((const unsigned char *)buf,str,size);
-	int _len = strlen(str);
-	cJSON *json = cJSON_CreateObject();
-	cJSON_AddNumberToObject(json, "signal", SEND_FILE);
-	cJSON_AddNumberToObject(json, "from_id", uid);
-    cJSON_AddNumberToObject(json, "to_id", fid);
-	cJSON_AddNumberToObject(json, "f_size", size);
-	cJSON_AddNumberToObject(json, "c_size", _len);
-	cJSON_AddStringToObject(json, "filename", filename);
-    cJSON_AddStringToObject(json, "content", str);
-	char *pass = cJSON_PrintUnformatted(json);
-	printf("base64::%s\n",pass);
-	add_file_size(sockfd,pass);
-	free(str);
-    free(buf);
-    cJSON_Delete(json);
-}
 int getch(void)
 {
     struct termios tm, tm_old;
@@ -247,6 +77,20 @@ int getch(void)
     }
     return ch;
 }
+/*发包函数，美滋滋*/
+void add_file_size(int fd, char *pass)
+{
+    int m = strlen(pass) + 16;
+    //char *temp_pack =(char*)malloc(sizeof(char)*m);
+    char temp_pack[m + 1]; //大小也是个坑
+    temp_pack[m] = 0;
+    strcpy(temp_pack + 16, pass);
+    *(int *)temp_pack = strlen(pass);
+    printf("lll%s\n", pass);
+    send(fd, &temp_pack, m, 0);
+    return;
+}
+
 void reg(int sockfd) /*注册用户信息*/
 {
     //char * pass = (char*)malloc(sizeof(char)*256);
@@ -580,39 +424,28 @@ void add_group(int sockfd,int uid)
     add_file_size(sockfd,pass);
     cJSON_Delete(json);
 }
-//收文件函数
-void rec_file(int sockfd,cJSON * node)
+/*上传文件*/
+void send_file(int sockfd, int uid)
 {
-	int fp = open("tmp", O_CREAT | O_RDWR | O_APPEND, 0777);
-	if (-1 == fp)
-		printf("创建文件失败\n");
-	char filename[50];
-	int fid;
-	int f_size;
-	strcpy(filename, cJSON_GetObjectItem(node, "filename")->valuestring);
-	f_size = cJSON_GetObjectItem(node, "f_size")->valueint;
-	int len = cJSON_GetObjectItem(node, "c_size")->valueint;
-	char *buf = (char *)malloc(sizeof(char)*len);
-	strcpy(buf, cJSON_GetObjectItem(node, "content")->valuestring);
-	char *str = (char *)malloc(f_size);
-	//解码
-	base64_decode(buf,(unsigned char *)str);
-
-	int ret = 0;
-	int num = f_size;
-	while (num >= 0)
-	{ 
-		ret = write(fp, buf + ret,num);
-		num -= ret;
-	}
-	buf[f_size] = '\0';
-	close(fp);
-	if (rename("tmp", filename) < 0)
-	{
-		printf("重命名失败");
-	}
-	free(buf);
-	free(str);
+    int fd;
+    char filename[40];
+    cJSON *json = cJSON_CreateObject();
+    cJSON_AddNumberToObject(json, "signal", SEND_FILE);
+    cJSON_AddNumberToObject(json, "uid", uid);
+    printf("请输入文件路径\n");
+    scanf("%s", &filename);
+    if ((fd = open(filename, O_RDONLY, S_IRUSR | S_IWUSR)) == -1)
+    {
+        printf("文件打开失败\n");
+        return;
+    }
+    read(fd, filename, strlen(filename));
+    printf("%s", filename);
+    cJSON_AddStringToObject(json, "content", filename);
+    char *pass = cJSON_PrintUnformatted(json);
+    printf("%s\n", pass);
+    add_file_size(sockfd, pass);
+    cJSON_Delete(json);
 }
 /*二十一世纪得分包函数*/
 void *analysis_pack(void *arg)
@@ -626,8 +459,7 @@ void *analysis_pack(void *arg)
         int m = recv(sockfd, &number, 16, 0);
         if (m == 0)
             break;
-       // printf("梳到爆了\n");
-       printf("gggggggggggggggggg\n");
+        // printf("ss%d,%d\n", number, m);
         char *temp = (char *)malloc(sizeof(char) * number + 1);
         int sf, c1 = 0, c2 = 0, c3 = 0;
         temp[number] = 0;
@@ -709,9 +541,6 @@ void *analysis_pack(void *arg)
             case ADD_GROUP:
                 printf("加群成功\n");
                 break;
-            case SEND_BACK:
-                rec_file(sockfd,node);
-                break;
             default:
                 flag = 0;
                 printf("好戏即将开始\n");
@@ -744,8 +573,7 @@ void menu_select(int sockfd, int id)
     printf("\t\t\t*********12.删除群成员**********\t\t\t\n");
     printf("\t\t\t*********13.退群 **********\t\t\t\n");
      printf("\t\t\t*********14.加群**********\t\t\t\n");
-      printf("\t\t\t*********15.上传文件**********\t\t\t\n");
-    printf("\t\t\t*********1６.退出*******\t\t\t\n");
+    printf("\t\t\t*********15.退出*******\t\t\t\n");
     int choice;
     printf("\t\t\t请输入你的选择:");
     scanf("%d", &choice);
@@ -799,9 +627,6 @@ void menu_select(int sockfd, int id)
     case 14:
         add_group(sockfd,id);
         break;
-    case 15:
-         send_file(sockfd,id);
-         break;
     default:
         printf("输入错误，请重新输入\n");
         break;

@@ -3,94 +3,10 @@ extern pthread_mutex_t mutex;
 extern int usr_number;
 extern int uid;
 extern struct usr_info usr[USR_NUM];
+/*********************数据库的使用**********************/
 MYSQL mysql;
 int type; /*判断文件类型*/
 char sql_str[100];
-/***********************快递员********************************/
-int add_file_size(int fd, char *pass) //防止粘包现象的发生
-{
-    int m = strlen(pass) + 16;
-    char temp_pack[m+1];
-    temp_pack[m] = 0;
-    strcpy(temp_pack + 16, pass);
-    *(int *)temp_pack = strlen(pass);
-    printf("%s\n",pass);
-    send(fd, &temp_pack, m, 0);
-    // free(temp_pack);
-    return 1;
-}
-/*获得好友套接字*/
-char *get_guys_sockfd(int recv_id)
-{
-    MYSQL_RES *res;
-    MYSQL_ROW row;
-    bzero(&sql_str, 100);
-    sprintf(sql_str, "select sockfd from usr_info where id='%d'", recv_id);
-    int ret = mysql_real_query(&mysql, sql_str, strlen(sql_str));
-    if (ret != 0)
-    {
-        printf("get_guys_sockfd:%s\n", mysql_error(&mysql));
-        return NULL;
-    }
-    res = mysql_store_result(&mysql);
-    row = mysql_fetch_row(res);
-    cJSON *json = cJSON_CreateObject();
-    char *pass = NULL;
-    if (row)
-    {
-        printf("sock:%d", atoi(row[0]));
-        cJSON_AddNumberToObject(json, "sockfd", atoi(row[0]));
-        pass = cJSON_PrintUnformatted(json);
-    }
-    else
-        printf("获取套接字失败\n");
-    cJSON_Delete(json);
-    mysql_free_result(res);
-    return pass;
-}
-/*解码*/
-inline int num_strchr(const char *str, char c)
-{
-	const char *pindex = strchr(str, c);
-	if (NULL == pindex)
-	{
-		return -1;
-	}
-	return pindex - str;
-}
-//发送文件信息回馈函数
-void send_file_re(char * string)
-{
-	//now_path = TS_PATH;
-    cJSON *json= cJSON_Parse(string);
-	int from_id = cJSON_GetObjectItem(json, "from_id")->valueint;
-	int to_id = cJSON_GetObjectItem(json, "to_id")->valueint;
-    char *recv = get_guys_sockfd(to_id);
-    cJSON *tnode = cJSON_Parse(recv);
-    int f_sock = cJSON_GetObjectItem(tnode, "sockfd")->valueint; //获得好友的套接字
-    cJSON_Delete(tnode);
-    cJSON_Delete(json);
-	printf("用户为%d的用户想向您传输文件(Y or N)\n",from_id);
-	char ch;
-	scanf("%c", &ch);
-	while ('\n' != (getchar()));
-	cJSON *node = cJSON_CreateObject();
-	cJSON_AddNumberToObject(node, "signal",SEND_BACK);
-	cJSON_AddNumberToObject(node, "to_id", to_id);
-	cJSON_AddNumberToObject(node, "from_id",from_id);
-	if (ch == 'y' || ch == 'Y')
-	{
-		cJSON_AddNumberToObject(node, "send_f_r", 1);
-	}
-	else if (ch == 'n' || ch == 'N')
-	{
-		cJSON_AddNumberToObject(node, "send_f_r", 0);
-	}
-    char * pass = cJSON_PrintUnformatted(node);
-    cJSON_Delete(node);
-	add_file_size(f_sock,pass);
-}
-/*********************数据库的使用**********************/
 void my_error(const char *string, int line)
 {
     fprintf(stderr, "line:%d", line);
@@ -117,6 +33,19 @@ int connect_to_mysql(void)
         return 0;
     }
     printf("ｃｏｎｎｃｅｔ\n");
+    return 1;
+}
+/***********************快递员********************************/
+int add_file_size(int fd, char *pass) //防止粘包现象的发生
+{
+    int m = strlen(pass) + 16;
+    char temp_pack[m+1];
+    temp_pack[m] = 0;
+    strcpy(temp_pack + 16, pass);
+    *(int *)temp_pack = strlen(pass);
+    printf("%s\n",pass);
+    send(fd, &temp_pack, m, 0);
+    // free(temp_pack);
     return 1;
 }
 /*保存数据到数据库*/
@@ -314,6 +243,35 @@ int delate_usr(int id,int sockfd)
     add_file_size(sockfd,pass);
     cJSON_Delete(json);
     return 1;
+}
+/*获得好友套接字*/
+char *get_guys_sockfd(int recv_id)
+{
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    bzero(&sql_str, 100);
+    sprintf(sql_str, "select sockfd from usr_info where id='%d'", recv_id);
+    int ret = mysql_real_query(&mysql, sql_str, strlen(sql_str));
+    if (ret != 0)
+    {
+        printf("get_guys_sockfd:%s\n", mysql_error(&mysql));
+        return NULL;
+    }
+    res = mysql_store_result(&mysql);
+    row = mysql_fetch_row(res);
+    cJSON *json = cJSON_CreateObject();
+    char *pass = NULL;
+    if (row)
+    {
+        printf("sock:%d", atoi(row[0]));
+        cJSON_AddNumberToObject(json, "sockfd", atoi(row[0]));
+        pass = cJSON_PrintUnformatted(json);
+    }
+    else
+        printf("获取套接字失败\n");
+    cJSON_Delete(json);
+    mysql_free_result(res);
+    return pass;
 }
 /*********************************添加好友**************************************/
 /*第一次好友添加请求*/
@@ -1038,9 +996,6 @@ void *handle(void *arg)
     case ADD_GROUP:
         add_group(msg->buf,m);
         break;
-    case SEND_FILE:
-       send_file_re(msg->buf);
-       break;
     default:
         printf("敬请期待\n");
         break;
@@ -1078,7 +1033,7 @@ int main(int argc, char *argv[])
     //  int temp = 1;
     // setsockopt(ret,SOL_SOCKET,SO_REUSEADDR,&temp,sizeof(int));
     ev.data.fd = sockfd;
-    ev.events = EPOLLIN;
+    ev.events = EPOLLIN | EPOLLET;
     epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev);
     int j = 0;
     while (1)
