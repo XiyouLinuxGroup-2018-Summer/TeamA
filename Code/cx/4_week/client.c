@@ -480,21 +480,18 @@ void *analysis_pack(void *arg)
                // count++;
                 break;
             case DELETE_FRIEND:
-                flag = 0;
                 printf("成功删除\n");
-                break;
+              //  break;
             case ADD_USR:
-                flag = 0;
                 printf("成功添加\n");
                 break;
             case ADD_FRIEND:
-                flag = 0;
                 strcpy(friend, temp);
                 printf("ss%s", friend);
                 printf("well,first hand\n");
                 break;
             case FRIEND_REPLY:
-                flag = 0;
+              //  flag = 0;
                 if (cJSON_GetObjectItem(node, "tip")->valueint == AGREE)
                     printf("对方已经同意添加你为好友\n");
                 break;
@@ -503,15 +500,15 @@ void *analysis_pack(void *arg)
                 printf("%s\n", cJSON_GetObjectItem(node, "content")->valuestring);
                 break;
             case SPEAKING:
-                flag = 0;
+              //  flag = 0;
                 printf("%d已被解除禁言\n", cJSON_GetObjectItem(node, "id")->valueint);
                 break;
             case NO_SPEAKING:
-                flag = 0;
+              //  flag = 0;
                 printf("%d已被成功禁言\n", cJSON_GetObjectItem(node, "id")->valueint);
                 break;
             case CREAT_GROUP:
-                flag = 0;
+              //  flag = 0;
                 printf("建群成功\n");
                 break;
             case GET_FRI_LIST:
@@ -542,12 +539,12 @@ void *analysis_pack(void *arg)
                 printf("加群成功\n");
                 break;
             default:
-                flag = 0;
+              //  flag = 0;
                 printf("好戏即将开始\n");
                 break;
             }
-            if (flag == 0)
-                break;
+          //  if (flag == 0)
+              //  break;
             cJSON_Delete(node);
         }
         pthread_mutex_unlock(&mutex);
@@ -558,7 +555,8 @@ void *analysis_pack(void *arg)
 void menu_select(int sockfd, int id)
 {
     pthread_t thid1, thid2;
-    pthread_create(&thid1, NULL, analysis_pack, (void *)&sockfd);
+    while(1)
+    {
     printf("\t\t\t*********1.删除好友********\t\t\t\n");
     printf("\t\t\t*********2.添加好友*******\t\t\t\n");
     printf("\t\t\t*********3.回复好友*******\t\t\t\n");
@@ -630,6 +628,7 @@ void menu_select(int sockfd, int id)
     default:
         printf("输入错误，请重新输入\n");
         break;
+    }
     }
 }
 /*登录函数*/
@@ -729,6 +728,8 @@ int main(int argc, char *argv[])
         printf("连接失败\n");
         exit(1);
     }
+    pthread_t thid1;
+    pthread_create(&thid1, NULL, analysis_pack, (void *)&sockfd);
     menu_main(sockfd);
     // while(1)
     //  menu_select(sockfd,uid);
