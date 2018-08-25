@@ -1,5 +1,7 @@
 #include "server.h"
 
+extern MYSQL sql;
+
 int sql_has_power(int userID, int groupID, int power) {
     char sqlMsg[512];
     MYSQL_RES *sqlRes;

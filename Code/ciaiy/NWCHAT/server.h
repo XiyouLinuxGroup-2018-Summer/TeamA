@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/epoll.h>
+#include <vector>
+#include <iostream>
 #include <errno.h>
 #include <stdlib.h>
 #include <mysql/mysql.h>
@@ -40,6 +42,9 @@ void quitGrp(cJSON *root);
 void createGrp(cJSON *root);
 void addGrp(cJSON *root);
 void retAddGrp(cJSON *root);
+void sendFile(cJSON *root);
+void addOffline(cJSON *root);
+void checkOffline(int recvID);
 
 /* 封装的数据库函数 */
 void serr(MYSQL *sql, const char *msg, int line);
@@ -113,15 +118,4 @@ int sql_has_power(int userID, int groupID, int power);
 #define ADD_GRP_FAILD -10
 #define ADD_FRD_FAILD -11
 #define ADD_FRD_SUCCESS -12
-
-/* 一些使用数据库的变量 */
-MYSQL sql;
-MYSQL_ROW sqlRow;
-MYSQL_RES *sqlRes;
-char sqlMsg[512];
-
-/* 一些关于服务器的变量 */
-int epfd;
-int serverSocket;
-struct sockaddr_in serverAddr;
-struct epoll_event ev, events[EPOLL_WAIT_MAX];
+#define SEND_FILE -14

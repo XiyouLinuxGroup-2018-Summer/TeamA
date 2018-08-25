@@ -55,7 +55,7 @@
 #define ADD_GRP_FAILD -10
 #define ADD_FRD_FAILD -11
 #define ADD_FRD_SUCCESS -12
-
+#define SEND_FILE -14
 void start(char *ch_addr, char *ch_port);
 void init(int port);
 void err(char *msg, int len);
@@ -77,6 +77,11 @@ void sendMsg(int ctlID);
 void ctlBlockFrd(int ctlID, int flag);
 void quitGrp(int ctlID);
 void ctlAddGrp(cJSON *root);
+
+void decode(FILE * fp_in, FILE * fp_out);
+void encode(FILE * fp_in, FILE * fp_out);
+int base64_decode( const char * base64, unsigned char * bindata);
+char * base64_encode( const unsigned char * bindata, char * base64, int binlength);
 
 /* 一些关于socket的变量 */
 int saLen;

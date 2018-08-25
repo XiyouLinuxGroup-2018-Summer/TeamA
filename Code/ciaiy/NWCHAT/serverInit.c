@@ -2,6 +2,19 @@
 
 #include "server.h"
 
+/* 一些使用数据库的变量 */
+MYSQL sql;
+MYSQL_ROW sqlRow;
+MYSQL_RES *sqlRes;
+char sqlMsg[512];
+
+/* 一些关于服务器的变量 */
+int epfd;
+int serverSocket;
+struct sockaddr_in serverAddr;
+struct epoll_event ev, events[EPOLL_WAIT_MAX];
+
+
 /* 开启服务器函数 */
 void start(int port)
 {
