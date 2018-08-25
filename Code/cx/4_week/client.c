@@ -125,7 +125,7 @@ void reg(int sockfd) /*注册用户信息*/
     cJSON_AddStringToObject(json, "passwd", passwd);
     char *pass = cJSON_PrintUnformatted(json);
     add_file_size(sockfd, pass);
-    int number;
+  /*  int number;
     recv(sockfd, &number, 16, 0);
     printf("fff\n");
     printf("%d\n", number);
@@ -135,7 +135,7 @@ void reg(int sockfd) /*注册用户信息*/
     printf("%s\n", temp);
     cJSON *node = cJSON_Parse(temp);
     printf("%s\n", cJSON_GetObjectItem(node, "content")->valuestring);
-    cJSON_Delete(json);
+    cJSON_Delete(json);*/
 }
 /*找回密码*/
 void back_passwd(int sockfd)
@@ -447,6 +447,86 @@ void send_file(int sockfd, int uid)
     add_file_size(sockfd, pass);
     cJSON_Delete(json);
 }
+/*菜单选择函数*/
+void menu_select(int sockfd, int id)
+{
+    pthread_t thid1, thid2;
+    while(1)
+    {
+    printf("\t\t\t*********1.删除好友********\t\t\t\n");
+    printf("\t\t\t*********2.添加好友*******\t\t\t\n");
+    printf("\t\t\t*********3.回复好友*******\t\t\t\n");
+    printf("\t\t\t*********4.获取好友列表***\t\t\t\n");
+    printf("\t\t\t*********5.私聊*******\t\t\t\n");
+    printf("\t\t\t*********6.创群*******\t\t\t\n");
+    printf("\t\t\t*********7.群聊**********\t\t\t\n");
+    printf("\t\t\t*********8.禁言*******\t\t\t\n");
+    printf("\t\t\t*********9.解除禁言*******\t\t\t\n");
+    printf("\t\t\t*********10.获得群好友列表*******\t\t\t\n");
+    printf("\t\t\t*********11.获得用户所在群列表*******\t\t\t\n");
+    printf("\t\t\t*********12.删除群成员**********\t\t\t\n");
+    printf("\t\t\t*********13.退群 **********\t\t\t\n");
+     printf("\t\t\t*********14.加群**********\t\t\t\n");
+    printf("\t\t\t*********15.退出*******\t\t\t\n");
+    int choice;
+    printf("\t\t\t请输入你的选择:");
+    scanf("%d", &choice);
+    switch (choice)
+    {
+    case 1:
+        delete_usr(sockfd);
+        break;
+    case 2:
+        add_friends(sockfd, id);
+        //  sleep(100);
+        //  pthread_create(&thid1, NULL, analysis_pack, (void *)&sockfd);
+        break;
+    case 3:
+        add_friends_reply(sockfd, friend);
+        // pthread_create(&thid1, NULL, analysis_pack, (void *)&sockfd);
+        break;
+    case 4:
+        get_friend_list(sockfd, id);
+        break;
+    case 5:
+        chat_private(sockfd, id);
+        break;
+    case 6:
+        create_group(sockfd, id);
+        break;
+    case 7:
+        chat_group(sockfd, id);
+        break;
+    case 8:
+        group_set_no_speaking(sockfd, id);
+        break;
+    case 9:
+        group_cancle_no_speaking(sockfd, id);
+        break;
+        /*  case 10:
+           // add_usr(sockfd);
+            break;*/
+    case 10:
+        get_group_list(sockfd, id);
+        break;
+    case 11:
+        group_usr_list(sockfd, id);
+        break;
+    case 12:
+        quit_group(sockfd, id);
+        break;
+    case 13:
+        quit_group_t(sockfd, id);
+        break;
+    case 14:
+        add_group(sockfd,id);
+        break;
+    default:
+        printf("输入错误，请重新输入\n");
+        break;
+    }
+    }
+}
 /*二十一世纪得分包函数*/
 void *analysis_pack(void *arg)
 {
@@ -538,6 +618,13 @@ void *analysis_pack(void *arg)
             case ADD_GROUP:
                 printf("加群成功\n");
                 break;
+            case REGISTER:
+              printf("%s\n",cJSON_GetObjectItem(node,"content")->valuestring);
+              break;
+            case LOGIN:
+              printf("%s",cJSON_GetObjectItem(node,"content")->valuestring);
+              //menu_select(sockfd,uid);
+              break;
             default:
               //  flag = 0;
                 printf("好戏即将开始\n");
@@ -549,86 +636,6 @@ void *analysis_pack(void *arg)
         }
         pthread_mutex_unlock(&mutex);
         free(temp);
-    }
-}
-/*菜单选择函数*/
-void menu_select(int sockfd, int id)
-{
-    pthread_t thid1, thid2;
-    while(1)
-    {
-    printf("\t\t\t*********1.删除好友********\t\t\t\n");
-    printf("\t\t\t*********2.添加好友*******\t\t\t\n");
-    printf("\t\t\t*********3.回复好友*******\t\t\t\n");
-    printf("\t\t\t*********4.获取好友列表***\t\t\t\n");
-    printf("\t\t\t*********5.私聊*******\t\t\t\n");
-    printf("\t\t\t*********6.创群*******\t\t\t\n");
-    printf("\t\t\t*********7.群聊**********\t\t\t\n");
-    printf("\t\t\t*********8.禁言*******\t\t\t\n");
-    printf("\t\t\t*********9.解除禁言*******\t\t\t\n");
-    printf("\t\t\t*********10.获得群好友列表*******\t\t\t\n");
-    printf("\t\t\t*********11.获得用户所在群列表*******\t\t\t\n");
-    printf("\t\t\t*********12.删除群成员**********\t\t\t\n");
-    printf("\t\t\t*********13.退群 **********\t\t\t\n");
-     printf("\t\t\t*********14.加群**********\t\t\t\n");
-    printf("\t\t\t*********15.退出*******\t\t\t\n");
-    int choice;
-    printf("\t\t\t请输入你的选择:");
-    scanf("%d", &choice);
-    switch (choice)
-    {
-    case 1:
-        delete_usr(sockfd);
-        break;
-    case 2:
-        add_friends(sockfd, id);
-        //  sleep(100);
-        //  pthread_create(&thid1, NULL, analysis_pack, (void *)&sockfd);
-        break;
-    case 3:
-        add_friends_reply(sockfd, friend);
-        // pthread_create(&thid1, NULL, analysis_pack, (void *)&sockfd);
-        break;
-    case 4:
-        get_friend_list(sockfd, id);
-        break;
-    case 5:
-        chat_private(sockfd, id);
-        break;
-    case 6:
-        create_group(sockfd, id);
-        break;
-    case 7:
-        chat_group(sockfd, id);
-        break;
-    case 8:
-        group_set_no_speaking(sockfd, id);
-        break;
-    case 9:
-        group_cancle_no_speaking(sockfd, id);
-        break;
-        /*  case 10:
-           // add_usr(sockfd);
-            break;*/
-    case 10:
-        get_group_list(sockfd, id);
-        break;
-    case 11:
-        group_usr_list(sockfd, id);
-        break;
-    case 12:
-        quit_group(sockfd, id);
-        break;
-    case 13:
-        quit_group_t(sockfd, id);
-        break;
-    case 14:
-        add_group(sockfd,id);
-        break;
-    default:
-        printf("输入错误，请重新输入\n");
-        break;
-    }
     }
 }
 /*登录函数*/
@@ -656,7 +663,7 @@ void login(int sockfd)
     char *pass = cJSON_PrintUnformatted(json);
     printf("%s\n", pass);
     add_file_size(sockfd, pass);
-    int number;
+   /* int number;
     int m = recv(sockfd, &number, 16, 0);
     printf("fff\n");
     printf("%d\n", number);
@@ -668,7 +675,8 @@ void login(int sockfd)
     if (strcmp(cJSON_GetObjectItem(node, "flag")->valuestring, "login successfully!!") == 0)
         while (1)
             menu_select(sockfd, id);
-    cJSON_Delete(node);
+    cJSON_Delete(node);*/
+   // menu_select(sockfd,uid);
     cJSON_Delete(json);
     return;
 }
@@ -676,6 +684,8 @@ void login(int sockfd)
 void menu_main(int sockfd)
 {
     //int sockfd = (int)arg;
+    int i = 0;
+    int flag = 0;
     printf("\t\t\t*********1.login*************\t\t\t\n");
     printf("\t\t\t*********2.register**********\t\t\t\n");
     printf("\t\t\t*********3.back_passwd*******\t\t\t\n");
@@ -687,6 +697,7 @@ void menu_main(int sockfd)
     switch (choice)
     {
     case 1:
+        flag = 1;
         login(sockfd);
         break;
     case 2:
@@ -731,7 +742,7 @@ int main(int argc, char *argv[])
     pthread_t thid1;
     pthread_create(&thid1, NULL, analysis_pack, (void *)&sockfd);
     menu_main(sockfd);
-    // while(1)
-    //  menu_select(sockfd,uid);
+     while(1)
+     menu_select(sockfd,uid);
     return 0;
 }
