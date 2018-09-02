@@ -1,2 +1,2 @@
-server : cJSON.c server.h serverInit.c serverMain.c serverAnalysis.c serverRun.c serverSql.c
-	gcc cJSON.c server.h serverInit.c serverMain.c serverAnalysis.c serverRun.c serverSql.c -o server -lpthread -lm `mysql_config --cflags --libs`
+server : cJSON.c server.h serverInit.c serverMain.c serverAnalysis.c serverRun.cpp serverSql.c
+	g++ cJSON.c server.h serverInit.c serverMain.c serverAnalysis.c serverRun.cpp serverSql.c -o server -lpthread -lm `mysql_config --cflags --libs`

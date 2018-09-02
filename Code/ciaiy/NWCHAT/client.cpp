@@ -18,6 +18,70 @@ STAT NOW;
 
 pthread_mutex_t grpListLock = PTHREAD_MUTEX_INITIALIZER;
 
+void recvFile(cJSON *data)
+{
+    char path[512] = "";
+    strcat(path, cJSON_GetObjectItem(data, "filename")->valuestring);
+    FILE *frecv = fopen(path, "a+");
+    fprintf(frecv, "%s", cJSON_GetObjectItem(data, "block")->valuestring);
+    fflush(frecv);
+    fclose(frecv);
+    
+    if (cJSON_GetObjectItem(data, "EOF")->valuestring)
+    {
+        printf("传输文件完成");
+        frecv = fopen(path, "a+");
+        FILE *fresult = fopen("result", "a+");
+        fseek(frecv, 0, SEEK_SET);
+        decode(frecv, fresult);
+        printf("传输完成\n");
+    }
+}
+
+void sendFile(int ctlID)
+{
+    char path[256];
+    printf("\033[2J");
+    printf("请输入文件路径:\n");
+    scanf("%s", path);
+    fflush(stdin);
+    FILE *fi = fopen(path, "r");
+    strcat(path, "_temp");
+    FILE *fo = fopen(path, "w+");
+    encode(fi, fo);
+    char buf[513];
+    buf[512] = 0;
+    int num = 0;
+    fseek(fo, 0, SEEK_SET);
+    while ((num = fread(buf, 1, 512, fo)) != 0)
+    {
+        int eof = num == 512 ? 0 : 1;
+        cJSON *data = cJSON_CreateObject();
+        buf[num] = 0;
+        int len;
+        char *sendPack;
+        cJSON_AddNumberToObject(data, "type", SEND_FILE);
+        cJSON_AddStringToObject(data, "filename", path);
+        if (eof)
+        {
+            cJSON_AddNumberToObject(data, "EOF", 1);
+        }
+        else
+        {
+            cJSON_AddNumberToObject(data, "EOF", 0);
+        }
+        cJSON_AddNumberToObject(data, "sendID", myID);
+        cJSON_AddNumberToObject(data, "recvID", ctlID);
+        cJSON_AddStringToObject(data, "block", buf);
+        printf("send %s\n", cJSON_PrintUnformatted(data));
+        len = cJSON_ToPackage(data, &sendPack);
+        send(clientSocket, sendPack, len, 0);
+        printf("读取了%d\n", num);
+        usleep(50000);
+    }
+    getch();
+}
+
 void freshGrp(cJSON *root)
 {
     printf("进入了freshGrp\n");
@@ -36,14 +100,14 @@ void freshGrp(cJSON *root)
 
     cJSON *memlist = cJSON_GetObjectItem(root, "memlist");
     printf("3\n");
-    
+
     cJSON *item = cJSON_GetArrayItem(memlist, 0);
     printf("4\n");
-    
+
     for (int j = 0; j < cJSON_GetArraySize(memlist); j++)
     {
-    printf("5\n");
-     
+        printf("5\n");
+
         grpList[i].memList[j].userID = cJSON_GetObjectItem(item, "ID")->valueint;
         grpList[i].memList[j].status = cJSON_GetObjectItem(item, "status")->valueint;
         grpList[i].memList[j].online = cJSON_GetObjectItem(item, "online")->valueint;
@@ -192,10 +256,10 @@ void freshMem(cJSON *root)
     printf("2\n");
     int online = cJSON_GetObjectItem(root, "online")->valueint;
     printf("3\n");
-    
+
     int ID = cJSON_GetObjectItem(root, "ID")->valueint;
     printf("4\n");
-    
+
     char name[32];
     printf("lallalla\n");
     strcpy(name, cJSON_GetObjectItem(root, "name")->valuestring);
@@ -424,7 +488,7 @@ void ctlFrd(int ctlID)
     do
     {
         ch = getch();
-    } while (ch != 'a' && ch != 'b' && ch != 'c' && ch != 'x');
+    } while (ch != 'a' && ch != 'b' && ch != 'c' && ch != 'x' && ch != 'd');
     printf("%c\n", ch);
     if (ch == 'a')
     {
@@ -437,6 +501,10 @@ void ctlFrd(int ctlID)
     if (ch == 'c')
     {
         ctlBlockFrd(ctlID, UNBLOCK_FRD);
+    }
+    if (ch == 'd')
+    {
+        sendFile(ctlID);
     }
 }
 
@@ -523,7 +591,6 @@ void desktop(void)
             break;
         case 'b':
             grpFun();
-            printf("~~~\n");
             break;
         case 'c':
             createGrp();
@@ -757,13 +824,17 @@ void analysis(cJSON *root)
     if (type == INIT_GRP)
     {
         initNewGrp(root);
-    } 
+    }
     if (type == ADD_GRP_FAILD || type == ADD_GRP_SUCCESS || type == ADD_GRP_SUCCESS || type == ADD_FRD_SUCCESS)
     {
-        system("play notice.mp3 2>/dev/null &");        
+        system("play notice.mp3 2>/dev/null &");
         pthread_mutex_lock(&noticeLock);
         noticeBox.push_back(root);
         pthread_mutex_unlock(&noticeLock);
+    }
+    if (type == SEND_FILE)
+    {
+        recvFile(root);
     }
 }
 
@@ -925,10 +996,15 @@ void *recvFun(void *arg)
 /* 收包函数 */
 cJSON *recvPack(void)
 {
+    printf("处理一次recv\n");
     int len;
-    recv(clientSocket, &len, sizeof(int), 0);
+    if(recv(clientSocket, &len, sizeof(int), 0) == 0) {
+        printf("和服务器失去连接\n");
+        exit(1);
+    }
 
     int index = 0;
+    fprintf(stderr, "Length = %d\n", len);
     char *data = (char *)malloc(len + 1);
     data[len] = 0;
 
@@ -949,7 +1025,7 @@ int cJSON_ToPackage(cJSON *root, char **sendPack)
     temp = cJSON_PrintUnformatted(root);
     len = strlen(temp) + 5;
     *sendPack = (char *)malloc(len);
-    sendPack[len - 1] = 0;
+    (*sendPack)[len - 1] = 0;
     strcpy((*sendPack) + 4, temp);
     *(int *)(*sendPack) = len - 4;
     free(temp);
@@ -986,4 +1062,135 @@ int main(int argc, char *argv[])
     start(argv[1], argv[2]);
 
     return 0;
+}
+
+#ifndef MAX_PATH
+#define MAX_PATH 256
+#endif
+
+const char *base64char = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+char *base64_encode(const unsigned char *bindata, char *base64, int binlength)
+{
+    int i, j;
+    unsigned char current;
+
+    for (i = 0, j = 0; i < binlength; i += 3)
+    {
+        current = (bindata[i] >> 2);
+        current &= (unsigned char)0x3F;
+        base64[j++] = base64char[(int)current];
+
+        current = ((unsigned char)(bindata[i] << 4)) & ((unsigned char)0x30);
+        if (i + 1 >= binlength)
+        {
+            base64[j++] = base64char[(int)current];
+            base64[j++] = '=';
+            base64[j++] = '=';
+            break;
+        }
+        current |= ((unsigned char)(bindata[i + 1] >> 4)) & ((unsigned char)0x0F);
+        base64[j++] = base64char[(int)current];
+
+        current = ((unsigned char)(bindata[i + 1] << 2)) & ((unsigned char)0x3C);
+        if (i + 2 >= binlength)
+        {
+            base64[j++] = base64char[(int)current];
+            base64[j++] = '=';
+            break;
+        }
+        current |= ((unsigned char)(bindata[i + 2] >> 6)) & ((unsigned char)0x03);
+        base64[j++] = base64char[(int)current];
+
+        current = ((unsigned char)bindata[i + 2]) & ((unsigned char)0x3F);
+        base64[j++] = base64char[(int)current];
+    }
+    base64[j] = '\0';
+    return base64;
+}
+
+int base64_decode(const char *base64, unsigned char *bindata)
+{
+    int i, j;
+    unsigned char k;
+    unsigned char temp[4];
+    for (i = 0, j = 0; base64[i] != '\0'; i += 4)
+    {
+        memset(temp, 0xFF, sizeof(temp));
+        for (k = 0; k < 64; k++)
+        {
+            if (base64char[k] == base64[i])
+                temp[0] = k;
+        }
+        for (k = 0; k < 64; k++)
+        {
+            if (base64char[k] == base64[i + 1])
+                temp[1] = k;
+        }
+        for (k = 0; k < 64; k++)
+        {
+            if (base64char[k] == base64[i + 2])
+                temp[2] = k;
+        }
+        for (k = 0; k < 64; k++)
+        {
+            if (base64char[k] == base64[i + 3])
+                temp[3] = k;
+        }
+
+        bindata[j++] = ((unsigned char)(((unsigned char)(temp[0] << 2)) & 0xFC)) |
+                       ((unsigned char)((unsigned char)(temp[1] >> 4) & 0x03));
+        if (base64[i + 2] == '=')
+            break;
+
+        bindata[j++] = ((unsigned char)(((unsigned char)(temp[1] << 4)) & 0xF0)) |
+                       ((unsigned char)((unsigned char)(temp[2] >> 2) & 0x0F));
+        if (base64[i + 3] == '=')
+            break;
+
+        bindata[j++] = ((unsigned char)(((unsigned char)(temp[2] << 6)) & 0xF0)) |
+                       ((unsigned char)(temp[3] & 0x3F));
+    }
+    return j;
+}
+
+void encode(FILE *fp_in, FILE *fp_out)
+{
+    unsigned char bindata[2050];
+    char base64[4096];
+    size_t bytes;
+    while (!feof(fp_in))
+    {
+        bytes = fread(bindata, 1, 2049, fp_in);
+        base64_encode(bindata, base64, bytes);
+        fprintf(fp_out, "%s", base64);
+    }
+}
+
+void decode(FILE *fp_in, FILE *fp_out)
+{
+    int i;
+    unsigned char bindata[2050];
+    char base64[4096];
+    size_t bytes;
+    while (!feof(fp_in))
+    {
+        for (i = 0; i < 2048; i++)
+        {
+            base64[i] = fgetc(fp_in);
+            if (base64[i] == EOF)
+                break;
+            else if (base64[i] == '\n' || base64[i] == '\r')
+                i--;
+        }
+        bytes = base64_decode(base64, bindata);
+        fwrite(bindata, bytes, 1, fp_out);
+    }
+}
+
+void help(const char *filepath)
+{
+    fprintf(stderr, "Usage: %s [-d] [input_filename] [-o output_filepath]\n", filepath);
+    fprintf(stderr, "\t-d\tdecode data\n");
+    fprintf(stderr, "\t-o\toutput filepath\n\n");
 }
